@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
+
+# Firebase config (contains project identifiers; add to git only if public project)
+app/google-services.json
+app/src/*/google-services.json
+
+# Signing
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# KSP / generated
+**/generated/
