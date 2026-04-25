@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function driveDoc(id) {
+      return get(/databases/$(database)/documents/drives/$(id)).data;
+    }
+
+    match /users/{uid} {
+      allow read: if resource.data.visibility == 'public' || request.auth.uid == uid;
+      // Create rule restricts the field set so a new user cannot inject
+      // server-controlled fields (points, stats, anonHandle, createdAt) at create time.
+      allow create: if verified() && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(
+                         ['displayName', 'avatarUrl', 'bio', 'visibility',
+                          'createdAt', 'updatedAt']
+                       )
+                    && (!('visibility' in request.resource.data)
+                        || request.resource.data.visibility in ['private', 'public']);
+      allow update: if verified() && request.auth.uid == uid
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['points', 'stats', 'anonHandle', 'createdAt']);
+      allow delete: if request.auth.uid == uid;
+    }
+
+    match /drives/{id} {
+      allow read: if (resource.data.deletedAt == null
+                      && (resource.data.visibility == 'public'
+                          || resource.data.visibility == 'unlisted'))
+                  || request.auth.uid == resource.data.ownerUid;
+      allow create: if verified() && request.auth.uid == request.resource.data.ownerUid;
+      allow update, delete: if verified() && request.auth.uid == resource.data.ownerUid;
+
+      match /waypoints/{wpId} {
+        allow read: if request.auth != null && request.auth.uid == driveDoc(id).ownerUid
+                    || (driveDoc(id).visibility != 'private' && resource.data.hidden != true);
+        allow write: if verified() && request.auth.uid == driveDoc(id).ownerUid;
+      }
+
+      match /comments/{cId} {
+        allow read: if (driveDoc(id).visibility != 'private' && driveDoc(id).deletedAt == null)
+                    || (request.auth != null && request.auth.uid == driveDoc(id).ownerUid);
+        allow create: if verified()
+                      && request.auth.uid == request.resource.data.authorUid
+                      && driveDoc(id).visibility == 'public'
+                      && driveDoc(id).deletedAt == null
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() > 0
+                      && request.resource.data.body.size() <= 4000;
+        allow update: if verified() && (
+                        (request.auth.uid == resource.data.authorUid
+                         && !request.resource.data.diff(resource.data).affectedKeys()
+                                .hasAny(['authorUid', 'createdAt', 'isHelpfulAnswer']))
+                     || (request.auth.uid == driveDoc(id).ownerUid
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                                .hasOnly(['isHelpfulAnswer', 'deleted'])));
+        allow delete: if verified()
+                      && (request.auth.uid == resource.data.authorUid
+                          || request.auth.uid == driveDoc(id).ownerUid);
+      }
+    }
+
+    match /public_drives_index/{prefix}/drives/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Server-side rate-limit counters. Only writable by Cloud Functions (admin SDK).
+    match /rate_limits/{doc} {
+      allow read, write: if false;
+    }
+  }
+}

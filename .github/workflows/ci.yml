@@ -2,13 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
-    branches: [main]
+    branches: ['**']
+
+# Cancel in-progress runs on the same ref when a new push lands.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  android:
+    name: Android — lint, unit tests, assembleDebug
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -16,26 +23,115 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Stub google-services.json
+      - name: Provision google-services.json (stub for compile-only CI)
         run: cp .github/ci/google-services.stub.json app/google-services.json
+
+      - name: Provision local.properties (CI sdk path + empty OAuth client)
+        run: |
+          cat > local.properties <<'EOF'
+          sdk.dir=${ANDROID_SDK_ROOT}
+          GOOGLE_WEB_CLIENT_ID=
+          EOF
 
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
 
-      - name: Unit tests
+      - name: Unit tests (Robolectric included)
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Assemble debug
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload debug APK
+      - name: Upload unit test report on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: unit-test-report-${{ github.sha }}
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Assemble debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload lint report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report-${{ github.sha }}
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+  functions:
+    name: Cloud Functions — TypeScript build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript build
+        run: npm run build
+
+      - name: Unit tests (Jest)
+        run: npm test -- --ci --reporters=default
+
+      - name: Upload functions test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-test-report-${{ github.sha }}
+          path: functions/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  rules:
+    name: Firestore / Storage rules — sanity check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate rules shape
+        run: |
+          set -e
+          for f in firebase/firestore.rules firebase/storage.rules; do
+            if [ ! -f "$f" ]; then
+              echo "::error::missing $f"
+              exit 1
+            fi
+            if ! grep -q "rules_version *= *'2'" "$f"; then
+              echo "::error::$f missing rules_version = '2'"
+              exit 1
+            fi
+            if ! grep -q "match */" "$f"; then
+              echo "::error::$f has no match blocks"
+              exit 1
+            fi
+            echo "✓ $f shape OK"
+          done

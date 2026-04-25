@@ -1,0 +1,46 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    // Per-drive Firestore lookup. The rules CAN read Firestore via firestore.get(),
+    // but it adds a read per request. We accept that cost on Storage paths because
+    // photos/tracks are larger and less frequently read than they are charged for.
+    function driveDoc(driveId) {
+      return firestore.get(/databases/(default)/documents/drives/$(driveId)).data;
+    }
+
+    function driveReadable(driveId) {
+      let d = driveDoc(driveId);
+      return d.deletedAt == null
+             && (d.visibility == 'public' || d.visibility == 'unlisted'
+                 || (request.auth != null && request.auth.uid == d.ownerUid));
+    }
+
+    // Track GeoJSON blobs. Filenames are "{driveId}.geojson.gz".
+    // Read gated by drive visibility (no more world-readable). Writes restricted to drive owner,
+    // capped at 5 MB and gzipped MIME type.
+    match /tracks/{file} {
+      allow read: if file.matches('.*\\.geojson\\.gz')
+                  && driveReadable(file.split('\\.geojson\\.gz')[0]);
+      allow write: if verified()
+                   && file.matches('.*\\.geojson\\.gz')
+                   && request.auth.uid == driveDoc(file.split('\\.geojson\\.gz')[0]).ownerUid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType in ['application/gzip', 'application/x-gzip', 'application/octet-stream'];
+    }
+
+    // Waypoint photos. Read gated by drive visibility; writes restricted to the path's owner uid,
+    // capped at 10 MB, image/* content type only.
+    match /users/{uid}/drives/{driveId}/waypoints/{wpId}/{photo} {
+      allow read: if driveReadable(driveId);
+      allow write: if verified()
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

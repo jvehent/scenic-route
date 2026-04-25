@@ -24,4 +24,31 @@
     <string name="settings_lookback_buffer">Lookback buffer</string>
     <string name="settings_lookback_explainer">We keep the last N minutes of your GPS on-device so you can save a scenic stretch after the fact.</string>
     <string name="settings_sign_out">Sign out</string>
+
+    <string name="recording_notification_channel">Recording a drive</string>
+    <string name="recording_notification_channel_desc">Persistent notification while a drive is being recorded.</string>
+    <string name="recording_notification_title">Recording a drive</string>
+
+    <string name="recording_stop">Stop</string>
+    <string name="recording_add_waypoint">Add waypoint</string>
+    <string name="recording_distance">%1$.1f km</string>
+    <string name="recording_duration">%1$02d:%2$02d</string>
+    <string name="recording_need_location">Location permission is required to record.</string>
+    <string name="recording_need_notification">Notification permission is required to show the recording status.</string>
+    <string name="recording_grant">Grant</string>
+    <string name="recording_sign_in_first">Sign in first to record a drive.</string>
+
+    <string name="buffer_notification_channel">Lookback buffer</string>
+    <string name="buffer_notification_channel_desc">Kept on-device so you can save the last minutes of driving after the fact.</string>
+    <string name="buffer_notification_title">Scenic Route</string>
+    <string name="buffer_notification_text">Keeping the last few minutes so you can record after the fact.</string>
+
+    <string name="settings_buffer_window">Buffer window</string>
+    <string name="settings_wifi_only">Upload photos on Wi-Fi only</string>
+    <string name="settings_discovery_radius">Default discovery radius</string>
+
+    <string name="rfe_title">Record from earlier</string>
+    <string name="rfe_empty">Nothing buffered yet. Drive for a minute with the buffer on.</string>
+    <string name="rfe_range">From %1$d min ago to now</string>
+    <string name="rfe_save">Save as drive</string>
 </resources>

@@ -21,11 +21,22 @@ captures/
 # Firebase config (contains project identifiers; add to git only if public project)
 app/google-services.json
 app/src/*/google-services.json
+.firebase/
+.firebaserc
+functions/.env
+functions/.env.*
+functions/.runtimeconfig.json
 
 # Signing
 *.jks
 *.keystore
 keystore.properties
+
+# WSL / Windows interop (alternate data stream artifacts)
+*:Zone.Identifier
+
+# Node
+node_modules/
 
 # OS
 .DS_Store

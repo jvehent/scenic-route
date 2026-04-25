@@ -54,7 +54,12 @@ class AuthRepository @Inject constructor(
         user.toState()
     }
 
-    fun signOut() {
+    /**
+     * Sign out + wipe local-only state. The cleaner is passed in to break a potential
+     * dep cycle (cleaner needs DB + photo storage which sit downstream of auth).
+     */
+    suspend fun signOut(cleaner: SignOutCleaner) {
+        runCatching { cleaner.wipeAll() }
         firebaseAuth.signOut()
     }
 

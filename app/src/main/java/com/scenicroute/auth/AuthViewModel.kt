@@ -13,6 +13,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repo: AuthRepository,
+    private val signOutCleaner: SignOutCleaner,
 ) : ViewModel() {
 
     val state: StateFlow<AuthState> = repo.authState
@@ -25,6 +26,8 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signOut() {
-        repo.signOut()
+        viewModelScope.launch {
+            repo.signOut(signOutCleaner)
+        }
     }
 }

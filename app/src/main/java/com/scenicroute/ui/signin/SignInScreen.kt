@@ -1,11 +1,14 @@
 package com.scenicroute.ui.signin
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import com.scenicroute.ui.layout.FormMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,9 +37,10 @@ fun SignInScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
 
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .widthIn(max = FormMaxWidth)
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,5 +81,6 @@ fun SignInScreen(
             Spacer(Modifier.height(16.dp))
             Text(it, color = MaterialTheme.colorScheme.error)
         }
+    }
     }
 }
