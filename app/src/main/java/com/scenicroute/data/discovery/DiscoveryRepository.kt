@@ -15,14 +15,19 @@ class DiscoveryRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) {
     suspend fun fetchFeatured(limit: Int = 5): List<DiscoveryDrive> {
+        // The deletedAt==null filter is required by the security rule for /drives:
+        // anonymous users may only read public, non-trashed docs, and Firestore
+        // rejects the whole query unless it filters on every field the rule reads.
         val snap = runCatching {
             firestore.collection("drives")
                 .whereEqualTo("visibility", "public")
+                .whereEqualTo("deletedAt", null)
                 .orderBy("updatedAt", Query.Direction.DESCENDING)
                 .limit(limit.toLong())
                 .get()
                 .await()
-        }.getOrNull() ?: return emptyList()
+        }.onFailure { android.util.Log.w("DiscoveryRepo", "fetchFeatured failed", it) }
+            .getOrNull() ?: return emptyList()
         return snap.documents.mapNotNull { doc ->
             val centroidLat = doc.getDouble("centroidLat") ?: return@mapNotNull null
             val centroidLng = doc.getDouble("centroidLng") ?: return@mapNotNull null

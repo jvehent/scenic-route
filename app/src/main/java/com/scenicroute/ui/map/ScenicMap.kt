@@ -36,7 +36,10 @@ import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
 private const val TAG = "ScenicMap"
-private const val STYLE_URL = "https://demotiles.maplibre.org/style.json"
+// Stadia Maps "Stamen Terrain" — hand-drawn terrain rendering, free for non-commercial
+// up to 200k req/mo without an API key. See README/TODO if/when we exceed the free tier.
+// Attribution shown automatically by the MapLibre Android SDK; do not suppress.
+private const val STYLE_URL = "https://tiles.stadiamaps.com/styles/stamen_terrain.json"
 
 private const val SRC_TRACK = "scenic-track"
 private const val SRC_WAYPOINTS = "scenic-waypoints"
@@ -190,7 +193,18 @@ private fun applyCamera(
         CameraBehavior.FitBounds -> {
             if (holder.boundsFitted) return
             val coords = track.map { it.lat to it.lng } + waypoints.map { it.lat to it.lng }
-            if (coords.size < 2) return
+            if (coords.isEmpty()) return
+            // Single coordinate (e.g. a featured drive whose only known location is its
+            // centroid pin) — center on it at a regional zoom so the user sees context.
+            if (coords.size == 1) {
+                val (lat, lng) = coords[0]
+                map.cameraPosition = CameraPosition.Builder()
+                    .target(LatLng(lat, lng))
+                    .zoom(9.0)
+                    .build()
+                holder.boundsFitted = true
+                return
+            }
             val builder = LatLngBounds.Builder()
             coords.forEach { (lat, lng) -> builder.include(LatLng(lat, lng)) }
             val bounds = runCatching { builder.build() }.getOrNull() ?: return

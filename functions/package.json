@@ -12,7 +12,8 @@
     "test": "jest --passWithNoTests",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "seed": "ts-node tools/seedFeatured.ts"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
@@ -20,8 +21,10 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.13",
+    "@types/node": "^20.16.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.6.0"
   }
 }

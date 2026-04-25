@@ -1,6 +1,7 @@
 package com.scenicroute.ui.nav
 
 object Destinations {
+    const val WELCOME = "welcome"
     const val EXPLORE = "explore"
     const val SIGN_IN = "signin"
     const val HOME = "home"

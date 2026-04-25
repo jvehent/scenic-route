@@ -51,4 +51,10 @@
     <string name="rfe_empty">Nothing buffered yet. Drive for a minute with the buffer on.</string>
     <string name="rfe_range">From %1$d min ago to now</string>
     <string name="rfe_save">Save as drive</string>
+
+    <string name="welcome_tagline">Discover scenic drives around the world, then capture and share your own.</string>
+    <string name="welcome_featured_label">Featured drives</string>
+    <string name="welcome_featured_empty">Couldn\'t load featured drives. Pull again later.</string>
+    <string name="welcome_signin_cta">Sign in with Google</string>
+    <string name="welcome_browse_cta">Browse as guest</string>
 </resources>

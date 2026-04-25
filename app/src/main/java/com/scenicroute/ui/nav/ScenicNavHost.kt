@@ -26,6 +26,7 @@ import com.scenicroute.ui.rfe.RecordFromEarlierScreen
 import com.scenicroute.ui.settings.SettingsScreen
 import com.scenicroute.ui.signin.SignInScreen
 import com.scenicroute.ui.trash.TrashScreen
+import com.scenicroute.ui.welcome.WelcomeScreen
 
 @Composable
 fun ScenicNavHost(
@@ -36,10 +37,17 @@ fun ScenicNavHost(
 
     val start = when (authState) {
         is AuthState.SignedIn -> Destinations.HOME
-        else -> Destinations.EXPLORE
+        else -> Destinations.WELCOME
     }
 
     NavHost(navController = navController, startDestination = start) {
+        composable(Destinations.WELCOME) {
+            WelcomeScreen(
+                onSignIn = { navController.navigate(Destinations.SIGN_IN) },
+                onBrowseAsGuest = { navController.navigate(Destinations.EXPLORE) },
+                onDriveClick = { id -> navController.navigate(Destinations.publicDrive(id)) },
+            )
+        }
         composable(Destinations.EXPLORE) {
             ExploreScreen(
                 isSignedIn = authState is AuthState.SignedIn,
@@ -51,7 +59,7 @@ fun ScenicNavHost(
             SignInScreen(
                 onSignedIn = {
                     navController.navigate(Destinations.HOME) {
-                        popUpTo(Destinations.EXPLORE) { inclusive = false }
+                        popUpTo(Destinations.WELCOME) { inclusive = true }
                     }
                 },
                 onBack = { navController.popBackStack() },

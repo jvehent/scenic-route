@@ -90,8 +90,8 @@ fun PublicDriveScreen(
             )
         }
     }
-    val mapWaypoints = remember(state.waypoints, drive) {
-        state.waypoints.map {
+    val mapWaypoints = remember(state.waypoints, drive, mapTrack) {
+        val real = state.waypoints.map {
             WaypointEntity(
                 id = it.id,
                 driveId = drive?.id ?: "remote",
@@ -101,6 +101,29 @@ fun PublicDriveScreen(
                 syncState = "SYNCED",
             )
         }
+        // Featured/imported drives don't have a recorded track or waypoints — fall back
+        // to the drive's known anchors (start, end, centroid) so FitBounds has at least
+        // one point to zoom into instead of leaving the world map at z=0.
+        if (real.isEmpty() && mapTrack.isEmpty() && drive != null) {
+            val anchors = mutableListOf<WaypointEntity>()
+            fun add(tag: String, lat: Double?, lng: Double?) {
+                if (lat == null || lng == null) return
+                anchors += WaypointEntity(
+                    id = "${drive.id}:$tag",
+                    driveId = drive.id,
+                    lat = lat, lng = lng,
+                    recordedAt = 0L,
+                    syncState = "SYNCED",
+                )
+            }
+            add("start", drive.startLat, drive.startLng)
+            add("end", drive.endLat, drive.endLng)
+            // Only add centroid if it's not a duplicate of start/end (covers the loop case
+            // where start == end and we want a single distinct point).
+            if (anchors.isEmpty()) add("centroid", drive.centroidLat, drive.centroidLng)
+            return@remember anchors
+        }
+        real
     }
 
     Scaffold(

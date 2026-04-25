@@ -12,7 +12,8 @@ Severity:
 ## 🔴 Launch-blockers
 
 ### Deploy the latest rules + functions
-- `firebase deploy --only functions,firestore:rules,storage:rules`
+- `firebase deploy --only functions,firestore:rules,storage`  
+  (Note: `storage:rules` is not a valid Firebase CLI target — use bare `storage`, which deploys the rules in our setup since we don't define named buckets.)
 - Verify deploy succeeded (`firebase functions:list` shows `onUserDocCreated`, `onCommentCreated`, `cleanupTrashedDrives`, etc. all `ACTIVE`).
 - Smoke test: sign up new account → confirm `/users/{uid}` has a server-assigned `anonHandle` that is **not** derivable from the uid hash.
 
