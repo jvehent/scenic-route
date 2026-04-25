@@ -1,5 +1,6 @@
 package com.scenicroute.ui.photo
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -35,6 +36,7 @@ import com.scenicroute.data.storage.PhotoStorage
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter") // edge-to-edge by design
 @Composable
 fun PhotoViewerScreen(
     path: String,
@@ -98,6 +100,8 @@ fun PhotoViewerScreen(
             )
         },
     ) { _ ->
+        // Edge-to-edge by design: top bar is transparent and overlays the image. The
+        // scaffold padding is intentionally ignored so the picture extends behind the bar.
         Box(
             modifier = Modifier.fillMaxSize().background(Color.Black),
             contentAlignment = Alignment.Center,

@@ -31,12 +31,11 @@ jobs:
       - name: Provision google-services.json (stub for compile-only CI)
         run: cp .github/ci/google-services.stub.json app/google-services.json
 
-      - name: Provision local.properties (CI sdk path + empty OAuth client)
+      - name: Provision local.properties (empty OAuth client; SDK from env)
         run: |
-          cat > local.properties <<'EOF'
-          sdk.dir=${ANDROID_SDK_ROOT}
-          GOOGLE_WEB_CLIENT_ID=
-          EOF
+          # Don't set sdk.dir — Gradle picks the SDK from ANDROID_HOME / ANDROID_SDK_ROOT
+          # which the GitHub Actions runner exports automatically.
+          echo "GOOGLE_WEB_CLIENT_ID=" > local.properties
 
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
