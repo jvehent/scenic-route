@@ -20,6 +20,10 @@ val googleWebClientId: String = localProperties.getProperty("GOOGLE_WEB_CLIENT_I
     ?: System.getenv("GOOGLE_WEB_CLIENT_ID")
     ?: ""
 
+val stadiaApiKey: String = localProperties.getProperty("STADIA_API_KEY")
+    ?: System.getenv("STADIA_API_KEY")
+    ?: ""
+
 android {
     namespace = "com.scenicroute"
     compileSdk = 35
@@ -34,6 +38,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+        buildConfigField("String", "STADIA_API_KEY", "\"$stadiaApiKey\"")
     }
 
     buildTypes {

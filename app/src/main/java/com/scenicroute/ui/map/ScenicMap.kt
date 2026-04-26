@@ -36,10 +36,15 @@ import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
 private const val TAG = "ScenicMap"
-// Stadia Maps "Stamen Terrain" — hand-drawn terrain rendering, free for non-commercial
-// up to 200k req/mo without an API key. See README/TODO if/when we exceed the free tier.
-// Attribution shown automatically by the MapLibre Android SDK; do not suppress.
-private const val STYLE_URL = "https://tiles.stadiamaps.com/styles/stamen_terrain.json"
+// Stadia Maps "Stamen Terrain" — hand-drawn terrain rendering. Requires an API key
+// for mobile-app traffic; key supplied via local.properties → BuildConfig.STADIA_API_KEY.
+// Attribution is rendered automatically by the MapLibre Android SDK; do not suppress.
+// If the key isn't configured (e.g. CI), fall back to OpenFreeMap which is keyless.
+private val STYLE_URL: String = if (com.scenicroute.BuildConfig.STADIA_API_KEY.isNotBlank()) {
+    "https://tiles.stadiamaps.com/styles/stamen_terrain.json?api_key=${com.scenicroute.BuildConfig.STADIA_API_KEY}"
+} else {
+    "https://tiles.openfreemap.org/styles/liberty"
+}
 
 private const val SRC_TRACK = "scenic-track"
 private const val SRC_WAYPOINTS = "scenic-waypoints"
