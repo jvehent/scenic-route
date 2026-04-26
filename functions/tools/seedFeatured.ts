@@ -47,9 +47,9 @@ admin.initializeApp({ storageBucket: detectStorageBucket() });
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
-const CURATOR_UID = "scenic-route-featured";
-const CURATOR_HANDLE = "scenic-route";
-const CURATOR_NAME = "Scenic Route";
+const CURATOR_UID = "senik-featured";
+const CURATOR_HANDLE = "senik";
+const CURATOR_NAME = "Senik";
 
 interface NamedWaypoint {
   lat: number;

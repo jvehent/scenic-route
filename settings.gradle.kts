@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "scenic-route"
+rootProject.name = "senikroute"
 include(":app")

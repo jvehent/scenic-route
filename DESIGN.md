@@ -1,12 +1,12 @@
-# Scenic Route — Design Document
+# Senik — Design Document
 
 *Draft v0.2 — for review*
 
 ## 1. Vision
 
-Scenic Route is an app for travelers who love the journey as much as the destination. It lets drivers record a segment of road — a GPS trace, photos, and notes — and preserve it as a personal memory or share it with others. When on the road, it surfaces *other* recorded scenic drives nearby, so travelers can discover the beautiful detours locals and past visitors have marked as worth the trip.
+Senik is an app for travelers who love the journey as much as the destination. It lets drivers record a segment of road — a GPS trace, photos, and notes — and preserve it as a personal memory or share it with others. When on the road, it surfaces *other* recorded scenic drives nearby, so travelers can discover the beautiful detours locals and past visitors have marked as worth the trip.
 
-It is explicitly **not** a replacement for Google Maps or Waze. There is no turn-by-turn navigation, no traffic routing, no ETA. Scenic Route answers a different question: *"what's worth driving here?"*
+It is explicitly **not** a replacement for Google Maps or Waze. There is no turn-by-turn navigation, no traffic routing, no ETA. Senik answers a different question: *"what's worth driving here?"*
 
 ## 2. Goals & Non-Goals
 

@@ -1,4 +1,4 @@
-# Publishing scenic-route to the Google Play Store
+# Publishing Senik to the Google Play Store
 
 A complete walkthrough from "we have a working APK" to "users can install from Play Store." Companion to [INSTALL.md](INSTALL.md) (dev setup) and [TODO.md](TODO.md) (launch checklist).
 
@@ -32,8 +32,8 @@ Before you open the Play Console, have these ready:
 ```bash
 mkdir -p ~/keystores
 keytool -genkeypair -v \
-  -keystore ~/keystores/scenic-release.jks \
-  -alias scenic-key \
+  -keystore ~/keystores/senik-release.jks \
+  -alias senik-key \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
@@ -42,10 +42,10 @@ Use strong passwords. **Save them in your password manager immediately** — los
 ### B.2 Register the release fingerprints in Firebase
 
 ```bash
-keytool -list -v -keystore ~/keystores/scenic-release.jks -alias scenic-key | grep -E 'SHA1|SHA256'
+keytool -list -v -keystore ~/keystores/senik-release.jks -alias senik-key | grep -E 'SHA1|SHA256'
 ```
 
-Firebase Console → Project settings → Your apps → `com.scenicroute` → **Add fingerprint** twice (once for SHA-1, once for SHA-256).
+Firebase Console → Project settings → Your apps → `com.senikroute` → **Add fingerprint** twice (once for SHA-1, once for SHA-256).
 
 - SHA-1 unlocks Google Sign-In on release builds.
 - SHA-256 is required for App Check / Play Integrity.
@@ -57,11 +57,15 @@ After adding, **re-download `google-services.json`** from the Firebase Console a
 Create `keystore.properties` at the repo root (already gitignored):
 
 ```properties
-storeFile=/home/<you>/keystores/scenic-release.jks
+# Replace ${HOME} below with your actual absolute path — Gradle does NOT
+# expand shell vars or ~ here. e.g. /home/julien/keystores/senik-release.jks
+storeFile=${HOME}/keystores/senik-release.jks
 storePassword=<store-password>
-keyAlias=scenic-key
+keyAlias=senik-key
 keyPassword=<key-password>
 ```
+
+> ⚠️ The placeholders (`${HOME}`, `<store-password>`, `<key-password>`) are **literal text** that you must hand-edit. Gradle reads this file as a plain Java `.properties` file with no variable expansion — leaving any placeholder in place will fail with `Keystore file '...' not found for signing config 'release'`.
 
 Add this block to [app/build.gradle.kts](app/build.gradle.kts) (above the `android { ... }` block):
 
@@ -109,11 +113,11 @@ Before uploading, install the release APK on your phone to make sure Google Sign
 ```bash
 ./gradlew assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
-adb shell am start -n com.scenicroute/com.scenicroute.MainActivity
+adb shell am start -n com.senikroute/com.senikroute.MainActivity
 # Sign in. If it errors with "developer error", the SHA-1 isn't registered correctly.
 ```
 
-Note the package name is `com.scenicroute` (not `.debug`) for release builds.
+Note the package name is `com.senikroute` (not `.debug`) for release builds.
 
 ---
 
@@ -147,7 +151,7 @@ In the Console:
 
 1. **All apps → Create app**.
 2. Fill out:
-   - **App name**: `Scenic Route`
+   - **App name**: `Senik`
    - **Default language**: English (or your primary)
    - **App or game**: App
    - **Free or paid**: Free (paid is a one-way flip)
@@ -173,7 +177,7 @@ For our app, the policy must cover:
 Quick path to host one:
 1. Use a free privacy-policy generator (e.g., https://app-privacy-policy-generator.firebaseapp.com or https://www.iubenda.com).
 2. Customize it for the data points above.
-3. Host on a public URL — GitHub Pages, Netlify, Vercel free tier all work. The simplest is a single `index.html` deployed to a `scenicroute.app/privacy` path.
+3. Host on a public URL — GitHub Pages, Netlify, Vercel free tier all work. The simplest is a single `index.html` deployed to a `senikroute.com/privacy` path.
 4. Paste the URL into Play Console → App content → Privacy policy.
 
 **Don't link to a Notion page or Google Doc** — Google sometimes rejects those.
@@ -192,7 +196,7 @@ We have none → **No, my app does not contain ads**.
 
 ### G.3 Content rating
 
-Fill the questionnaire. For scenic-route the answers are mostly "No" — no violence, no sexual content, no profanity, no gambling, no drugs. The result will be **Everyone / PEGI 3 / IARC equivalent**.
+Fill the questionnaire. For Senik the answers are mostly "No" — no violence, no sexual content, no profanity, no gambling, no drugs. The result will be **Everyone / PEGI 3 / IARC equivalent**.
 
 ### G.4 Target audience and content
 
@@ -213,7 +217,7 @@ No.
 
 ### G.8 Data safety
 
-This is the longest form. You must declare every data type collected. For scenic-route:
+This is the longest form. You must declare every data type collected. For Senik:
 
 | Data type | Collected? | Shared with 3rd parties? | Optional? | Purpose |
 |-----------|-----------|--------------------------|-----------|---------|
@@ -244,7 +248,7 @@ N/A — we don't read Health Connect.
 
 ### H.1 Main store listing
 
-- **App name**: `Scenic Route`
+- **App name**: `Senik`
 - **Short description (80 chars max)**: e.g. *"Discover scenic drives around the world. Capture your road, share the view."*
 - **Full description (4000 chars max)**: Describe the app in detail. Include the origin story (Costa Rica drive), key features (record, annotate, share, explore), platforms supported (Android first; iOS planned).
 - **App icon**: 512×512 PNG, no alpha channel.
@@ -375,7 +379,7 @@ If you want to ship the minimum viable thing and iterate publicly:
 2. Build AAB (Section C).
 3. Pay $25, create developer account (Section D).
 4. Create app in Console (Section E).
-5. Host a minimal privacy policy on `scenicroute.app/privacy` (Section F).
+5. Host a minimal privacy policy on `senikroute.com/privacy` (Section F).
 6. Fill the **required** Console tasks; defer translations / promo / open testing.
 7. Upload the AAB to **Internal testing** track.
 8. Add yourself + 5 friends as testers; live test for a week.

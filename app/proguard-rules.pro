@@ -8,4 +8,4 @@
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 -dontwarn kotlinx.coroutines.flow.**
 
--keep class com.scenicroute.data.** { *; }
+-keep class com.senikroute.data.** { *; }

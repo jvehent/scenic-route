@@ -24,12 +24,17 @@ val stadiaApiKey: String = localProperties.getProperty("STADIA_API_KEY")
     ?: System.getenv("STADIA_API_KEY")
     ?: ""
 
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "com.scenicroute"
+    namespace = "com.senikroute"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.scenicroute"
+        applicationId = "com.senikroute"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -41,6 +46,17 @@ android {
         buildConfigField("String", "STADIA_API_KEY", "\"$stadiaApiKey\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -49,10 +65,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Production photos + GeoJSON tracks live in the dedicated prod bucket.
+            buildConfigField("String", "STORAGE_BUCKET", "\"gs://senik-route-prod\"")
+            // Only attach the signing config if keystore.properties is present;
+            // otherwise leave unsigned so CI / fresh checkouts can still build.
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            // Debug builds keep using the dev bucket so we don't pollute prod with test data.
+            buildConfigField("String", "STORAGE_BUCKET", "\"gs://scenic-route-dev.firebasestorage.app\"")
         }
     }
 

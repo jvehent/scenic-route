@@ -1,4 +1,4 @@
-# scenic-route — pre-launch & post-launch TODO
+# Senik — pre-launch & post-launch TODO
 
 Captured from the security audit (DESIGN.md §17 covers the design-level open questions; this list is operational and post-MVP feature work).
 
@@ -27,11 +27,11 @@ Severity:
 ### Replace MapLibre demo tiles with a real provider
 - Current: `https://demotiles.maplibre.org/style.json` — rate-limited, third-party host sees viewing region.
 - Options: MapTiler (free tier ~100k tile loads/month), Stadia Maps (no key on free tier with attribution), Mapbox Studio (free tier), self-hosted via Tileserver-GL.
-- Update the `STYLE_URL` constant in `app/src/main/java/com/scenicroute/ui/map/ScenicMap.kt`.
+- Update the `STYLE_URL` constant in `app/src/main/java/com/senikroute/ui/map/SenikMap.kt`.
 
 ### Generate a release signing keystore and register the release SHA-1
 - See `keytool` instructions in the Option 2 install guide we did earlier.
-- Add the release SHA-1 fingerprint (and SHA-256, for App Check + future Play Integrity) in Firebase Console → Project settings → Your apps → `com.scenicroute` → Add fingerprint.
+- Add the release SHA-1 fingerprint (and SHA-256, for App Check + future Play Integrity) in Firebase Console → Project settings → Your apps → `com.senikroute` → Add fingerprint.
 - Wire up a `signingConfigs.release { ... }` block in `app/build.gradle.kts` reading from `keystore.properties`.
 - Without this: Play Store upload will be rejected, OR Google sign-in will silently fail in release builds because the app is signed with an unknown cert.
 
@@ -49,6 +49,12 @@ Severity:
 - Until then: have a documented support email + an SLA (e.g., "we'll process within 7 days") to honor GDPR right-to-erasure requests.
 - Add to your privacy policy and the Settings screen as a sentence with the email address.
 
+### Split debug and release into separate Firebase projects
+- Today both build variants share `scenic-route-dev` (Firestore + Auth + Functions). Only Storage is split (`scenic-route-dev` bucket for debug, `senik-route-prod` bucket for release) via per-buildType `BuildConfig.STORAGE_BUCKET` in [app/build.gradle.kts](app/build.gradle.kts).
+- Before opening to the public, create a dedicated prod Firebase project (e.g. `senik-prod`) so a debug build literally cannot reach prod Firestore/Auth, and billing/quotas/App Check enforcement become per-project.
+- Wiring: drop the prod `google-services.json` under `app/src/release/` (the Google Services plugin merges variant-specific files), register both release SHA-1 and SHA-256 fingerprints in the new project, deploy [firestore.rules](firestore.rules) + [storage.rules](storage.rules) + [firestore.indexes.json](firestore.indexes.json) + Cloud Functions to it, and add a `--project` selector to the Firebase CLI deploy scripts.
+- Tradeoff to accept: every rules push, index change, Functions deploy, OAuth fingerprint, and App Check provider becomes a two-target operation. Users in dev won't exist in prod (intentional).
+
 ### Cap Cloud Logging retention to ≤30 days
 - Reduces blast radius of the few remaining `logger.info` calls in the Cloud Functions.
 - GCP Console → Logging → Logs Storage → reduce default `_Default` bucket retention from the standard 30 days down (or set a separate, shorter bucket if you want fine control).
@@ -59,7 +65,7 @@ Severity:
 ### Verify EXIF stripping end-to-end
 - After deploy, capture a photo on your phone, publish a public drive, then download the photo URL via `curl` and run `exiftool` on it.
 - Make/Model/Software/Serial fields should be empty. GPS should remain.
-- If anything device-identifying leaks, add the missing tag name to `IDENTIFYING_TAGS` in [ExifScrubber.kt](app/src/main/java/com/scenicroute/data/storage/ExifScrubber.kt).
+- If anything device-identifying leaks, add the missing tag name to `IDENTIFYING_TAGS` in [ExifScrubber.kt](app/src/main/java/com/senikroute/data/storage/ExifScrubber.kt).
 
 ### Pre-launch chaos test on the rules
 - Open the Firestore Rules Playground and run the malicious-write scenarios from the audit:
@@ -106,10 +112,10 @@ Severity:
 - Per DESIGN.md §16 the data layer is platform-agnostic. iOS would reuse Firestore + Storage + Cloud Functions verbatim. UI in SwiftUI, sync logic in Swift (or shared via KMM if pain warrants).
 
 ### Web companion (read-only landing page for shared links)
-- Static site at `scenicroute.app` (when the domain is registered).
-- Receives traffic from `https://scenicroute.app/d/{driveId}` shared links, fetches the public drive from Firestore, renders the trace + waypoints + photos.
+- Static site at `senikroute.com` (when the domain is registered).
+- Receives traffic from `https://senikroute.com/d/{driveId}` shared links, fetches the public drive from Firestore, renders the trace + waypoints + photos.
 - Hosts `/.well-known/assetlinks.json` so Android App Links verify and the deep link goes straight to the installed app instead of the chooser.
-- Replace the `scenicroute://drive/{id}` custom scheme with the verified https link as the canonical share URL.
+- Replace the `senikroute://drive/{id}` custom scheme with the verified https link as the canonical share URL.
 
 ### Release-notes-driven Firebase App Distribution
 - Use `firebase appdistribution:distribute` for tester builds (the "Option 3" install path we discussed). Saves the manual sideload friction.

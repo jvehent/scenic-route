@@ -1,6 +1,6 @@
 # Installation & Deployment
 
-Reference for setting up scenic-route on a fresh machine and shipping it to debug or production. Companion to [DESIGN.md](DESIGN.md) (architecture) and [TODO.md](TODO.md) (launch checklist).
+Reference for setting up Senik on a fresh machine and shipping it to debug or production. Companion to [DESIGN.md](DESIGN.md) (architecture) and [TODO.md](TODO.md) (launch checklist).
 
 ---
 
@@ -95,8 +95,8 @@ keytool -list -v -keystore ~/.android/debug.keystore \
 3. **Build → Firestore Database → Create database** in production mode, region close to your users (location is permanent).
 4. **Build → Storage → Get started** in production mode (requires the **Blaze** pay-as-you-go plan; free tier is generous).
 5. **Project settings (gear) → Your apps → Add app → Android** twice:
-   - Package name `com.scenicroute` (release)
-   - Package name `com.scenicroute.debug` (debug)
+   - Package name `com.senikroute` (release)
+   - Package name `com.senikroute.debug` (debug)
    - For each, paste the corresponding signing-cert SHA-1 fingerprint.
 6. **Download `google-services.json`** for either app (it'll contain both clients) and place it at `app/google-services.json`. This file is gitignored.
 7. **Project settings → General → Your apps → Web SDK configuration** → copy the **Web client ID**.
@@ -146,7 +146,7 @@ adb connect <ip>:<connect-port>
 adb devices                         # phone should appear as 'device'
 
 ./gradlew installDebug
-adb shell am start -n com.scenicroute.debug/com.scenicroute.MainActivity
+adb shell am start -n com.senikroute.debug/com.senikroute.MainActivity
 ```
 
 ### 3.2 Sideload an APK onto an unconnected device
@@ -157,7 +157,7 @@ adb shell am start -n com.scenicroute.debug/com.scenicroute.MainActivity
 # Email / Drive / cable it to the phone, tap to install.
 ```
 
-The debug APK uses the package ID `com.scenicroute.debug` (note the `.debug` suffix from `applicationIdSuffix`) and is signed with `~/.android/debug.keystore`. Both must match what's registered in Firebase, otherwise Google sign-in fails.
+The debug APK uses the package ID `com.senikroute.debug` (note the `.debug` suffix from `applicationIdSuffix`) and is signed with `~/.android/debug.keystore`. Both must match what's registered in Firebase, otherwise Google sign-in fails.
 
 ### 3.3 Run from Android Studio
 
@@ -166,13 +166,13 @@ The debug APK uses the package ID `com.scenicroute.debug` (note the `.debug` suf
 ### 3.4 Tail logs
 
 ```bash
-adb logcat --pid=$(adb shell pidof com.scenicroute.debug)
+adb logcat --pid=$(adb shell pidof com.senikroute.debug)
 ```
 
 ### 3.5 Stop the debug build cleanly
 
 ```bash
-adb shell am force-stop com.scenicroute.debug
+adb shell am force-stop com.senikroute.debug
 ```
 
 ---
@@ -186,28 +186,32 @@ The release path adds: a real signing key, a release Firebase app registration, 
 ```bash
 mkdir -p ~/keystores
 keytool -genkeypair -v \
-  -keystore ~/keystores/scenic-release.jks \
-  -alias scenic-key \
+  -keystore ~/keystores/senik-release.jks \
+  -alias senik-key \
   -keyalg RSA -keysize 2048 -validity 10000
 # Set strong passwords. Save them in your password manager.
 
 # Get the release SHA-1 + SHA-256 — both go into Firebase
-keytool -list -v -keystore ~/keystores/scenic-release.jks -alias scenic-key | \
+keytool -list -v -keystore ~/keystores/senik-release.jks -alias senik-key | \
   grep -E 'SHA1|SHA256'
 ```
 
-Register both fingerprints in **Firebase Console → Project settings → Your apps → `com.scenicroute` → Add fingerprint**. (SHA-1 unlocks Google sign-in; SHA-256 is required for App Check + Play Integrity.)
+Register both fingerprints in **Firebase Console → Project settings → Your apps → `com.senikroute` → Add fingerprint**. (SHA-1 unlocks Google sign-in; SHA-256 is required for App Check + Play Integrity.)
 
 ### 4.2 Wire release signing into Gradle
 
 Create `keystore.properties` at the repo root (gitignored):
 
 ```properties
-storeFile=/home/<you>/keystores/scenic-release.jks
+# Replace ${HOME} below with your actual absolute path — Gradle does NOT
+# expand shell vars or ~ here. e.g. /home/julien/keystores/senik-release.jks
+storeFile=${HOME}/keystores/senik-release.jks
 storePassword=<your-store-password>
-keyAlias=scenic-key
+keyAlias=senik-key
 keyPassword=<your-key-password>
 ```
+
+> ⚠️ The placeholders (`${HOME}`, `<your-store-password>`, `<your-key-password>`) are **literal text** that you must hand-edit. Gradle reads this file as a plain Java `.properties` file with no variable expansion — leaving any placeholder in place will fail with `Keystore file '...' not found for signing config 'release'`.
 
 Then in [app/build.gradle.kts](app/build.gradle.kts), add a `signingConfigs.release` block (the file currently has `release { ... }` under `buildTypes` but no signing config — that's intentional for v1; add this when you're ready to ship):
 
@@ -287,7 +291,7 @@ firebase appdistribution:distribute \
   --release-notes "v0.x — what changed"
 ```
 
-`FIREBASE_ANDROID_APP_ID` is the long string from Firebase Console → Project settings → Your apps → `com.scenicroute` → App ID (`1:902...:android:abc...`).
+`FIREBASE_ANDROID_APP_ID` is the long string from Firebase Console → Project settings → Your apps → `com.senikroute` → App ID (`1:902...:android:abc...`).
 
 **Option B — Google Play Console** (public release):
 

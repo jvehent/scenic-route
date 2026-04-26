@@ -1,14 +1,14 @@
 {
   "project_info": {
     "project_number": "000000000000",
-    "project_id": "scenic-route-ci-stub",
-    "storage_bucket": "scenic-route-ci-stub.appspot.com"
+    "project_id": "senikroute-ci-stub",
+    "storage_bucket": "senikroute-ci-stub.appspot.com"
   },
   "client": [
     {
       "client_info": {
         "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
-        "android_client_info": { "package_name": "com.scenicroute" }
+        "android_client_info": { "package_name": "com.senikroute" }
       },
       "oauth_client": [],
       "api_key": [ { "current_key": "AIzaSyCI-stub-key-for-compile-only-do-not-use" } ],
@@ -17,7 +17,7 @@
     {
       "client_info": {
         "mobilesdk_app_id": "1:000000000000:android:0000000000000000000001",
-        "android_client_info": { "package_name": "com.scenicroute.debug" }
+        "android_client_info": { "package_name": "com.senikroute.debug" }
       },
       "oauth_client": [],
       "api_key": [ { "current_key": "AIzaSyCI-stub-key-for-compile-only-do-not-use" } ],

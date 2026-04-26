@@ -22,7 +22,7 @@
         android:required="false" />
 
     <application
-        android:name=".ScenicRouteApp"
+        android:name=".SenikApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -30,14 +30,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ScenicRoute"
+        android:theme="@style/Theme.Senik"
         android:usesCleartextTraffic="false"
         tools:targetApi="34">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ScenicRoute">
+            android:theme="@style/Theme.Senik">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -46,7 +46,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="scenicroute" android:host="drive" />
+                <data android:scheme="senikroute" android:host="drive" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -54,7 +54,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="scenicroute.app"
+                    android:host="senikroute.com"
                     android:pathPrefix="/d/" />
             </intent-filter>
         </activity>
