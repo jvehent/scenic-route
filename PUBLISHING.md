@@ -41,16 +41,58 @@ Use strong passwords. **Save them in your password manager immediately** — los
 
 ### B.2 Register the release fingerprints in Firebase
 
+> ⚠️ **You must register two different keys' fingerprints, not one.** When you upload an AAB to Google Play, Google re-signs the APKs delivered to user phones with their **App Signing key**, which is different from your local **upload key**. Firebase needs both fingerprints registered or Google Sign-In will fail with `"No credentials available"` for users who installed from the Play Store. Forgetting the App Signing fingerprint is the #1 reason new releases ship with broken sign-in.
+
+#### B.2.a Upload key — for sideloaded testing builds
+
+This is the keystore you generated in B.1 and use for `bundleRelease` / `assembleRelease`:
+
 ```bash
 keytool -list -v -keystore ~/keystores/senik-release.jks -alias senik-key | grep -E 'SHA1|SHA256'
 ```
 
-Firebase Console → Project settings → Your apps → `com.senikroute` → **Add fingerprint** twice (once for SHA-1, once for SHA-256).
+Firebase Console → Project settings → Your apps → `com.senikroute` → **Add fingerprint**, twice (once for the SHA-1 line, once for the SHA-256 line).
 
-- SHA-1 unlocks Google Sign-In on release builds.
-- SHA-256 is required for App Check / Play Integrity.
+This unlocks Google Sign-In for builds you `adb install` directly from the AAB / APK output, or distribute via Firebase App Distribution.
 
-After adding, **re-download `google-services.json`** from the Firebase Console and replace `app/google-services.json`.
+#### B.2.b App Signing key — for Play-Store-installed builds
+
+After your first AAB upload, Google Play creates an **App Signing key** that lives only in Play. Every APK Google delivers from the Play Store is signed with this key, not your upload key, so Firebase has to know about it separately.
+
+1. **Google Play Console** → your app → **Test and release** → **App integrity** → **App signing**.
+2. Under "App signing key certificate", copy the **SHA-1** and **SHA-256** values (NOT the ones under "Upload key certificate" — those duplicate B.2.a).
+3. Firebase Console → same `com.senikroute` app → **Add fingerprint**, twice.
+
+You don't need to re-upload anything to Play. Once these fingerprints land in Firebase (~30 s of propagation), users who installed from Play can sign in.
+
+#### B.2.c Debug key — for `assembleDebug` builds
+
+For local development against the `com.senikroute.debug` Firebase app:
+
+```bash
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
+  -storepass android -keypass android | grep -E 'SHA1|SHA256'
+```
+
+Register against the `com.senikroute.debug` app in Firebase, NOT `com.senikroute`.
+
+#### Final tally
+
+You should end up with at minimum:
+- 2 fingerprints (SHA-1 + SHA-256) on `com.senikroute.debug` (debug key)
+- 4 fingerprints on `com.senikroute` (2 from upload key + 2 from Play App Signing key)
+
+After adding, **re-download `google-services.json`** from the Firebase Console and replace `app/google-services.json`. (Fingerprints aren't actually written into that file — they live on Firebase's servers — but re-downloading keeps the file in sync if any other config changed.)
+
+#### Diagnosing "No credentials available" later
+
+If a user reports `"No credentials available"` on sign-in, the most likely cause is a missing fingerprint registration. To confirm whether it's the upload-key or App-Signing-key fingerprint that's missing, ask them to run (or run on the same install yourself):
+
+```bash
+adb shell dumpsys package com.senikroute | grep -E 'signatures|versionName'
+```
+
+Compare the cert signature against the SHA-256 lines from `keytool` (upload key) and the Play Console (App Signing key). Whichever one matches the installed APK, that fingerprint needs to be in Firebase.
 
 ### B.3 Wire signing into Gradle
 
