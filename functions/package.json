@@ -13,7 +13,8 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "seed": "ts-node tools/seedFeatured.ts"
+    "seed": "ts-node tools/seedFeatured.ts",
+    "inspect": "ts-node tools/inspectDrive.ts"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",

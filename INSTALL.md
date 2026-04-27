@@ -275,6 +275,19 @@ The seed writes 8 curator drives + a curator profile. The `onDriveWritten` Cloud
 
 **If you re-run the seed AFTER changing the curator drive list**, drives you removed from the seed are NOT auto-deleted from Firestore — delete them manually from the console (their `featured-*` IDs make them easy to find).
 
+### 4.5.1 Inspect a single drive
+
+Useful when a user reports a missing track or odd metadata. The drive ID is visible in the app at the bottom of the DriveDetailScreen and DriveReviewScreen — tap to copy.
+
+```bash
+cd functions
+npm run inspect <drive-id>           # pretty-print drive doc + waypoints + track summary
+npm run inspect <drive-id> --track   # include all track point coordinates
+npm run inspect <drive-id> --save    # also write the full data to ./inspect-<id>.json
+```
+
+Pulls the drive doc, all waypoints (including photo URLs), and the gzipped GeoJSON track from Cloud Storage. Sniffs the gzip magic header so it works regardless of whether Firebase Storage auto-decompressed the response. Output includes head/tail track coordinates, full point count, and the per-waypoint photo URL list — enough to diagnose "track points are missing" reports without firing up the Firebase console.
+
 ### 4.6 Distribution
 
 Two paths:

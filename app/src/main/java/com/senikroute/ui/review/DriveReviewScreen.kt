@@ -228,6 +228,8 @@ fun DriveReviewScreen(
                         onClick = { vm.save(title, description, visibility, tagsCsv, commentsEnabled, onSaved) },
                     ) { Text("Save") }
                 }
+
+                com.senikroute.ui.theme.DriveIdRow(d.id)
             }
         }
     }

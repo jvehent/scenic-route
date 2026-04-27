@@ -173,6 +173,7 @@ fun DriveDetailScreen(
             }
             item {
                 MetadataCard(
+                    driveId = d.id,
                     distanceM = d.distanceM ?: 0,
                     durationS = d.durationS ?: 0,
                     startedAt = d.startedAt,
@@ -219,6 +220,7 @@ fun DriveDetailScreen(
 
 @Composable
 private fun MetadataCard(
+    driveId: String,
     distanceM: Int,
     durationS: Int,
     startedAt: Long,
@@ -253,6 +255,8 @@ private fun MetadataCard(
                 Spacer(Modifier.height(4.dp))
                 Text(tags.joinToString(" · ") { "#$it" }, style = MaterialTheme.typography.labelLarge)
             }
+            Spacer(Modifier.height(8.dp))
+            com.senikroute.ui.theme.DriveIdRow(driveId)
         }
     }
 }
