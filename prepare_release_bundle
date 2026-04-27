@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Prepare a Play Store release bundle: bump version, run tests, build the AAB.
+#
+# Usage:
+#   ./prepare_release_bundle              # auto-increment versionName patch
+#   ./prepare_release_bundle 0.2.0        # set versionName explicitly
+#   ./prepare_release_bundle --no-bump    # skip the bump (rebuild same version)
+#
+# versionCode is always incremented by 1 (Play rejects re-uploads with the
+# same versionCode). versionName follows semver "major.minor.patch" — the
+# script bumps the patch number unless an explicit value is given.
+
+set -euo pipefail
+
+# Resolve to the repo root regardless of where the script is invoked from.
+cd "$(dirname "$0")"
+GRADLE_FILE="app/build.gradle.kts"
+
+if [[ ! -f "$GRADLE_FILE" ]]; then
+    echo "ERROR: $GRADLE_FILE not found — run this script from the repo root." >&2
+    exit 1
+fi
+
+# ─── parse args ─────────────────────────────────────────────────────────────
+NEW_NAME=""
+DO_BUMP=1
+case "${1:-}" in
+    --no-bump)  DO_BUMP=0 ;;
+    --help|-h)
+        sed -n '2,12p' "$0" | sed 's/^# \?//'
+        exit 0
+        ;;
+    "") ;;  # default: auto-bump
+    *)  NEW_NAME="$1" ;;
+esac
+
+# ─── read current version ───────────────────────────────────────────────────
+CUR_CODE=$(grep -E '^\s*versionCode\s*=' "$GRADLE_FILE" | head -1 | grep -Eo '[0-9]+')
+CUR_NAME=$(grep -E '^\s*versionName\s*=' "$GRADLE_FILE" | head -1 | grep -Eo '"[^"]+"' | tr -d '"')
+
+if [[ -z "$CUR_CODE" || -z "$CUR_NAME" ]]; then
+    echo "ERROR: could not parse current versionCode/versionName from $GRADLE_FILE" >&2
+    exit 1
+fi
+
+# ─── compute next version ───────────────────────────────────────────────────
+if [[ "$DO_BUMP" -eq 1 ]]; then
+    NEXT_CODE=$((CUR_CODE + 1))
+    if [[ -n "$NEW_NAME" ]]; then
+        NEXT_NAME="$NEW_NAME"
+    else
+        # Bump patch component of "major.minor.patch".
+        IFS='.' read -r MA MI PA <<< "$CUR_NAME"
+        if [[ -z "$MA" || -z "$MI" || -z "$PA" || ! "$PA" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: versionName '$CUR_NAME' is not in major.minor.patch form — pass an explicit version as the first argument." >&2
+            exit 1
+        fi
+        NEXT_NAME="${MA}.${MI}.$((PA + 1))"
+    fi
+else
+    NEXT_CODE="$CUR_CODE"
+    NEXT_NAME="$CUR_NAME"
+fi
+
+echo "─── prepare release bundle ──────────────────────────"
+echo "  current:  versionCode=$CUR_CODE  versionName=$CUR_NAME"
+echo "  next:     versionCode=$NEXT_CODE versionName=$NEXT_NAME"
+echo "─────────────────────────────────────────────────────"
+echo
+
+# ─── run tests first so we don't bump on a broken tree ──────────────────────
+echo "▶ running unit tests…"
+./gradlew :app:testDebugUnitTest --no-daemon
+echo "✓ tests passed"
+echo
+
+# ─── apply the bump ─────────────────────────────────────────────────────────
+if [[ "$DO_BUMP" -eq 1 ]]; then
+    # Edit in place. Use a portable sed pattern (works on GNU + BSD sed).
+    sed -i.bak \
+        -e "s/^\([[:space:]]*versionCode\s*=\s*\)$CUR_CODE\$/\1$NEXT_CODE/" \
+        -e "s/^\([[:space:]]*versionName\s*=\s*\)\"$CUR_NAME\"\$/\1\"$NEXT_NAME\"/" \
+        "$GRADLE_FILE"
+    rm -f "${GRADLE_FILE}.bak"
+
+    # Verify the sed actually made the substitutions — abort if anchored regex missed.
+    GOT_CODE=$(grep -E '^\s*versionCode\s*=' "$GRADLE_FILE" | head -1 | grep -Eo '[0-9]+')
+    GOT_NAME=$(grep -E '^\s*versionName\s*=' "$GRADLE_FILE" | head -1 | grep -Eo '"[^"]+"' | tr -d '"')
+    if [[ "$GOT_CODE" != "$NEXT_CODE" || "$GOT_NAME" != "$NEXT_NAME" ]]; then
+        echo "ERROR: version bump didn't take effect (got code=$GOT_CODE name=$GOT_NAME). Check $GRADLE_FILE manually." >&2
+        exit 1
+    fi
+    echo "✓ bumped to versionCode=$NEXT_CODE versionName=$NEXT_NAME"
+    echo
+fi
+
+# ─── build the release AAB ──────────────────────────────────────────────────
+echo "▶ building bundleRelease…"
+./gradlew bundleRelease --no-daemon
+AAB="app/build/outputs/bundle/release/app-release.aab"
+if [[ ! -f "$AAB" ]]; then
+    echo "ERROR: bundleRelease completed but $AAB is missing." >&2
+    exit 1
+fi
+
+# ─── summary ────────────────────────────────────────────────────────────────
+SIZE=$(du -h "$AAB" | cut -f1)
+SHA=$(sha256sum "$AAB" | cut -d' ' -f1 | cut -c1-16)
+echo
+echo "─── ready to upload ─────────────────────────────────"
+echo "  versionCode:  $NEXT_CODE"
+echo "  versionName:  $NEXT_NAME"
+echo "  AAB:          $AAB"
+echo "  size:         $SIZE"
+echo "  sha256[..16]: $SHA"
+echo "─────────────────────────────────────────────────────"
+echo
+echo "Next steps:"
+echo "  1. Play Console → Internal testing → Create new release → upload \$AAB"
+echo "  2. Commit the version bump:"
+echo "       git add $GRADLE_FILE && git commit -m \"release $NEXT_NAME (code $NEXT_CODE)\""
