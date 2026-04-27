@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Senik — record, annotate, and share scenic driving routes. For travelers who love the journey as much as the destination.">
+  <meta name="theme-color" content="#2E6E4B">
+  <meta property="og:title" content="Senik">
+  <meta property="og:description" content="For travelers who love the journey as much as the destination.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://senikroute.com">
+  <meta property="og:image" content="https://senikroute.com/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <title>Senik — what's worth driving here</title>
+  <style>
+    :root {
+      --green: #2E6E4B;
+      --green-dark: #1f4d34;
+      --terracotta: #B55A21;
+      --bg: #fafaf7;
+      --surface: #ffffff;
+      --text: #1a1a1a;
+      --muted: #5b6b65;
+      --border: #e3e6e2;
+      --max-width: 760px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+      color: #fff;
+      padding: 96px 24px 80px;
+      text-align: center;
+    }
+    .hero-icon {
+      width: 96px;
+      height: 96px;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.18));
+    }
+    h1 {
+      font-size: 64px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+    }
+    .tagline {
+      font-size: 22px;
+      font-weight: 400;
+      opacity: 0.92;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 64px 24px;
+    }
+    section { margin-bottom: 56px; }
+    section:last-of-type { margin-bottom: 0; }
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 16px;
+      letter-spacing: -0.01em;
+      color: var(--green-dark);
+    }
+    p {
+      margin: 0 0 16px;
+      color: var(--text);
+    }
+    p.lead {
+      font-size: 20px;
+      color: var(--text);
+    }
+    em.callout {
+      color: var(--terracotta);
+      font-style: italic;
+    }
+    ul.principles {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    ul.principles li {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    ul.principles li:last-child { border-bottom: none; }
+    ul.principles strong {
+      display: block;
+      color: var(--green-dark);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .muted { color: var(--muted); font-size: 16px; }
+    a {
+      color: var(--green-dark);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+    a:hover { color: var(--terracotta); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    footer a { color: var(--muted); }
+    footer .footer-links {
+      margin-bottom: 12px;
+    }
+    footer .footer-links a {
+      margin: 0 12px;
+    }
+    @media (max-width: 600px) {
+      header { padding: 64px 20px 56px; }
+      h1 { font-size: 44px; }
+      .tagline { font-size: 18px; }
+      main { padding: 48px 20px; }
+      h2 { font-size: 24px; }
+      body { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg class="hero-icon" viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg" aria-label="Senik">
+    <rect width="108" height="108" rx="22" fill="#FFFFFF" fill-opacity="0.08"/>
+    <path d="M34,74 C38,62 46,58 54,58 C62,58 70,54 74,42" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M72,38 l6,0 l-3,6 z" fill="#FFFFFF"/>
+  </svg>
+  <h1>Senik</h1>
+  <p class="tagline">For travelers who love the journey as much as the destination.</p>
+</header>
+
+<main>
+
+  <section>
+    <p class="lead">
+      Senik is an Android app for recording, annotating, and sharing scenic driving segments —
+      the back roads, mountain passes, coastal drives, and unmarked detours that are
+      <em class="callout">worth the trip even when they're not the fastest way to anywhere</em>.
+    </p>
+    <p>
+      You record a stretch of road. You drop waypoints with photos and notes at the moments
+      worth remembering. You decide whether it stays private, becomes a share-by-link memory
+      for the friends you drove with, or goes public so someone showing up in the same valley
+      two summers from now can find it.
+    </p>
+    <p>
+      When <em>you're</em> the one passing through somewhere new, Senik shows you the scenic
+      drives others have left behind nearby — so the question shifts from
+      <em>"what's the fastest route?"</em> to <em>"what's worth driving here?"</em>.
+    </p>
+  </section>
+
+  <section>
+    <h2>What it isn't</h2>
+    <p>
+      Senik is not a navigation app. There is no turn-by-turn, no traffic routing, no ETA,
+      no rerouting around accidents. Google Maps and Waze already do those things very well,
+      and replacing them is not the goal.
+    </p>
+    <p>
+      Most map apps are built around the destination. Senik is built around the road
+      between destinations.
+    </p>
+  </section>
+
+  <section>
+    <h2>Mission</h2>
+    <p>
+      Make the parts of the world that are worth driving findable, by the people who've
+      already driven them — without surveillance, without ads, and without dressing the road up
+      as a list of efficiency-optimized line segments.
+    </p>
+  </section>
+
+  <section>
+    <h2>Philosophy</h2>
+    <ul class="principles">
+      <li>
+        <strong>The journey is the product.</strong>
+        Distance, ETA, and efficiency aren't the primary metrics. The drive is.
+      </li>
+      <li>
+        <strong>Privacy is not optional.</strong>
+        The lookback buffer that keeps the last few minutes of GPS on-device is local-only —
+        never synced, never backed up, wiped on sign-out. EXIF metadata is stripped from
+        photos before upload. Anonymous handles are server-assigned and unlinkable from
+        your account.
+      </li>
+      <li>
+        <strong>Slow software.</strong>
+        Recording is foreground-service GPS at a user-controlled cadence. Sync is
+        opportunistic and Wi-Fi-aware. The app does not poll, does not background-track
+        outside an active recording, and does not phone home.
+      </li>
+      <li>
+        <strong>Local-first.</strong>
+        Your drives live on your device first; cloud sync is an upload, not a source of
+        truth. You can use Senik with no signal, and your drives still work.
+      </li>
+      <li>
+        <strong>No turn-by-turn means no surveillance.</strong>
+        We don't need to know where you're going. We only need to know where you've already
+        been — and only the parts you choose to keep.
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Status</h2>
+    <p>
+      Senik is in pre-launch. The Android app is feature-complete for v1; we're closing out
+      the launch-blocker checklist (App Check enforcement, release signing, budget alerts)
+      before opening it to the public on the Google Play Store.
+    </p>
+    <p>
+      Updates and a download link will appear here when the first release ships.
+    </p>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2 style="margin-top: 0;">For developers</h2>
+      <p style="margin-bottom: 8px;">
+        Senik is open to contributions — bug reports, iOS port, web companion, and
+        translations are all welcome. The architecture, philosophy in code, and contribution
+        guidelines live on GitHub.
+      </p>
+      <p class="muted" style="margin-bottom: 0;">
+        Kotlin · Jetpack Compose · MapLibre · Firebase · pre-launch
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="privacy-policy.html">Privacy policy</a>
+    <a href="mailto:senikroute@googlegroups.com">Contact</a>
+  </div>
+  <div>© Senik · Built by a family of road-trippers.</div>
+</footer>
+
+</body>
+</html>

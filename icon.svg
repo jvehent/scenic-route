@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108" role="img" aria-label="Senik logo">
+  <title>Senik</title>
+  <rect width="108" height="108" rx="22" fill="#2E6E4B"/>
+  <path d="M34,74 C38,62 46,58 54,58 C62,58 70,54 74,42" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M72,38 l6,0 l-3,6 z" fill="#FFFFFF"/>
+</svg>

@@ -6,8 +6,7 @@ import com.senikroute.data.repo.haversineMeters
 import kotlin.math.abs
 
 class LocationSampler(
-    private val minIntervalMs: Long = 2_000,
-    private val minDisplacementM: Double = 10.0,
+    private val minIntervalMs: Long = 10_000,
     private val headingChangeDeg: Float = 20f,
     private val maxAccuracyM: Float = 30f,
 ) {
@@ -21,14 +20,12 @@ class LocationSampler(
         val prev = lastAccepted
         if (prev != null) {
             val dt = fix.time - prev.time
-            if (dt < minIntervalMs) return null
-
-            val dist = haversineMeters(prev.latitude, prev.longitude, fix.latitude, fix.longitude)
+            // Always allow a sharp heading change to bypass the time-based rate limit so
+            // tight switchbacks aren't smoothed away by long sampling intervals.
             val headingChanged = if (fix.hasBearing() && prev.hasBearing()) {
                 abs(deltaDegrees(prev.bearing, fix.bearing)) >= headingChangeDeg
             } else false
-
-            if (dist < minDisplacementM && !headingChanged) return null
+            if (dt < minIntervalMs && !headingChanged) return null
         }
 
         lastAccepted = fix

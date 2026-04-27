@@ -27,4 +27,7 @@ interface TrackPointDao {
 
     @Query("DELETE FROM track_points WHERE driveId = :driveId")
     suspend fun deleteForDrive(driveId: String)
+
+    @Query("DELETE FROM track_points WHERE driveId = :driveId AND (seq < :minSeq OR seq > :maxSeq)")
+    suspend fun deleteOutsideSeqRange(driveId: String, minSeq: Int, maxSeq: Int)
 }

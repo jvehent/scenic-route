@@ -21,17 +21,23 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.senikroute.MainActivity
 import com.senikroute.R
+import com.senikroute.data.prefs.SettingsStore
+import com.senikroute.data.prefs.UserSettings
 import com.senikroute.data.repo.haversineMeters
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class RecordingService : LifecycleService() {
 
     @Inject lateinit var controller: RecordingController
+    @Inject lateinit var settingsStore: SettingsStore
 
     private lateinit var fusedClient: FusedLocationProviderClient
-    private val sampler = LocationSampler()
+    // Constructed in startRecording() once we've read the user's chosen sampling interval.
+    private var sampler: LocationSampler = LocationSampler()
     private var lastAcceptedForDistance: Location? = null
 
     private val callback = object : LocationCallback() {
@@ -62,8 +68,19 @@ class RecordingService : LifecycleService() {
 
     private fun startRecording() {
         startForegroundCompat()
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L)
-            .setMinUpdateIntervalMillis(1_000L)
+        // Read the user's configured sampling interval. runBlocking is acceptable here:
+        // this is a one-shot read on the main thread, fed by an in-memory DataStore cache
+        // after first read, and gated by foreground-service start which is already heavy.
+        val intervalSeconds = runBlocking {
+            runCatching { settingsStore.settings.first().gpsSamplingSeconds }
+                .getOrDefault(UserSettings.DEFAULT_GPS_SAMPLING_SECONDS)
+        }
+        val intervalMs = intervalSeconds * 1_000L
+        sampler = LocationSampler(minIntervalMs = intervalMs)
+        // Match the FusedLocationProvider request rate to the sampling rate so we don't
+        // wake the GPS chip more often than we'll keep results.
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
+            .setMinUpdateIntervalMillis(intervalMs)
             .setMinUpdateDistanceMeters(0f)
             .build()
         try {

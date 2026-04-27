@@ -31,4 +31,10 @@ interface WaypointDao {
 
     @Query("DELETE FROM waypoints WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("SELECT * FROM waypoints WHERE driveId = :driveId AND (recordedAt < :startTimeMs OR recordedAt > :endTimeMs)")
+    suspend fun getOutsideTimeRange(driveId: String, startTimeMs: Long, endTimeMs: Long): List<WaypointEntity>
+
+    @Query("DELETE FROM waypoints WHERE driveId = :driveId AND (recordedAt < :startTimeMs OR recordedAt > :endTimeMs)")
+    suspend fun deleteOutsideTimeRange(driveId: String, startTimeMs: Long, endTimeMs: Long)
 }

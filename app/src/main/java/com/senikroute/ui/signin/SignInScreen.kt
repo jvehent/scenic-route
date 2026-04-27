@@ -36,6 +36,34 @@ fun SignInScreen(
     val context = LocalContext.current
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    // Gate the Google sign-in flow behind privacy acceptance. Anonymous users
+    // (the "Browse without signing in" path) are not asked to accept.
+    var showPrivacy by remember { mutableStateOf(false) }
+
+    fun startGoogleSignIn() {
+        busy = true
+        vm.signIn(context) { result ->
+            busy = false
+            result.onSuccess { state ->
+                if (!state.isEmailVerified) {
+                    error = context.getString(R.string.signin_verify_email)
+                } else {
+                    onSignedIn()
+                }
+            }.onFailure { error = it.message ?: "Sign-in failed" }
+        }
+    }
+
+    if (showPrivacy) {
+        PrivacyAcceptanceScreen(
+            onAccept = {
+                showPrivacy = false
+                startGoogleSignIn()
+            },
+            onDecline = { showPrivacy = false },
+        )
+        return
+    }
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Column(
@@ -57,19 +85,7 @@ fun SignInScreen(
         Spacer(Modifier.height(32.dp))
         Button(
             enabled = !busy,
-            onClick = {
-                busy = true
-                vm.signIn(context) { result ->
-                    busy = false
-                    result.onSuccess { state ->
-                        if (!state.isEmailVerified) {
-                            error = context.getString(R.string.signin_verify_email)
-                        } else {
-                            onSignedIn()
-                        }
-                    }.onFailure { error = it.message ?: "Sign-in failed" }
-                }
-            },
+            onClick = { showPrivacy = true },
         ) {
             Text(stringResource(R.string.signin_google))
         }

@@ -16,6 +16,7 @@ import com.senikroute.data.model.SyncState
 import com.senikroute.data.model.VehicleReqs
 import com.senikroute.data.model.VehicleSummary
 import com.senikroute.data.model.Visibility
+import com.senikroute.data.storage.PhotoStorage
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import javax.inject.Inject
@@ -29,6 +30,7 @@ class DriveRepository @Inject constructor(
     private val waypointPhotoDao: WaypointPhotoDao,
     private val syncScheduler: SyncScheduler,
     private val firestore: FirebaseFirestore,
+    private val photoStorage: PhotoStorage,
 ) {
 
     fun observeDrives(ownerUid: String): Flow<List<DriveEntity>> =
@@ -213,6 +215,75 @@ class DriveRepository @Inject constructor(
     suspend fun getDirtyDrivesFor(ownerUid: String) = driveDao.getPendingSync(ownerUid)
     suspend fun getPendingWaypoints(driveId: String) = waypointDao.getPendingSync(driveId)
     suspend fun getPendingPhotos(driveId: String) = waypointPhotoDao.getPendingSync(driveId)
+
+    /**
+     * Permanently trims the drive's track to the inclusive seq range [keepFromSeq, keepToSeq].
+     * Track points and waypoints outside the range are deleted, along with their on-disk photo
+     * files; drive metrics (distance, duration, bbox, geohash, start/end coordinates) are
+     * recomputed from the surviving points. The drive is marked dirty so the next sync run
+     * uploads the truncated track. Destructive: there is no undo path.
+     */
+    suspend fun trimDrive(driveId: String, keepFromSeq: Int, keepToSeq: Int): DriveEntity? {
+        require(keepFromSeq <= keepToSeq) { "keepFromSeq must be <= keepToSeq" }
+        val drive = driveDao.getById(driveId) ?: return null
+        val allPoints = trackPointDao.get(driveId)
+        if (allPoints.isEmpty()) return drive
+
+        val firstSeq = allPoints.first().seq
+        val lastSeq = allPoints.last().seq
+        val from = keepFromSeq.coerceIn(firstSeq, lastSeq)
+        val to = keepToSeq.coerceIn(firstSeq, lastSeq)
+        // No-op if the range covers the whole track.
+        if (from == firstSeq && to == lastSeq) return drive
+
+        val keptStart = allPoints.first { it.seq >= from }
+        val keptEnd = allPoints.last { it.seq <= to }
+        val keptStartTime = keptStart.recordedAt
+        val keptEndTime = keptEnd.recordedAt
+
+        // Capture orphan photos before the cascade so we can scrub them off disk too.
+        val doomedWaypoints = waypointDao.getOutsideTimeRange(driveId, keptStartTime, keptEndTime)
+        val doomedPhotoPaths = doomedWaypoints
+            .flatMap { waypointPhotoDao.get(it.id) }
+            .map { it.localPath }
+
+        trackPointDao.deleteOutsideSeqRange(driveId, from, to)
+        waypointDao.deleteOutsideTimeRange(driveId, keptStartTime, keptEndTime)
+        // Remove the actual JPEGs the cascading photo rows pointed at — Room's FK cascade
+        // deletes the DB rows but the bytes on disk would otherwise leak.
+        doomedPhotoPaths.forEach { photoStorage.delete(it) }
+
+        // Recompute everything that depended on the now-gone points.
+        val survivingPoints = trackPointDao.get(driveId)
+        val survivingWaypoints = waypointDao.get(driveId)
+        val newDistanceM = computeDistanceMeters(survivingPoints).toInt()
+        val newBbox = BoundingBox.fromPoints(survivingPoints.map { it.lat to it.lng })
+        val newStart = survivingPoints.first()
+        val newEnd = survivingPoints.last()
+        val newDurationS = ((newEnd.recordedAt - newStart.recordedAt) / 1000L).toInt()
+
+        val updated = drive.copy(
+            startLat = newStart.lat,
+            startLng = newStart.lng,
+            endLat = newEnd.lat,
+            endLng = newEnd.lng,
+            startedAt = newStart.recordedAt,
+            endedAt = newEnd.recordedAt,
+            durationS = newDurationS,
+            distanceM = newDistanceM,
+            boundingBox = newBbox,
+            geohash = newBbox?.let { centroidGeohash(it) },
+            vehicleSummary = VehicleSummary.summarize(survivingWaypoints.mapNotNull { it.vehicleReqs }),
+            updatedAt = System.currentTimeMillis(),
+            // Force a re-upload of the track + drive doc on the next sync run.
+            trackUrl = null,
+            trackBytes = null,
+            syncState = SyncState.DIRTY.name,
+        )
+        driveDao.update(updated)
+        syncScheduler.scheduleNow()
+        return updated
+    }
 
     /** Soft delete: tombstones for 30 days, then a Cloud Function purges. */
     suspend fun softDeleteDrive(id: String) {

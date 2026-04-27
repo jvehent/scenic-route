@@ -73,6 +73,7 @@ fun SenikMap(
     track: List<TrackPointEntity> = emptyList(),
     waypoints: List<WaypointEntity> = emptyList(),
     cameraBehavior: CameraBehavior = CameraBehavior.Manual,
+    onMapTap: ((lat: Double, lng: Double) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -89,12 +90,20 @@ fun SenikMap(
     val currentTrack by rememberUpdatedState(track)
     val currentWaypoints by rememberUpdatedState(waypoints)
     val currentBehavior by rememberUpdatedState(cameraBehavior)
+    // Hold the latest tap handler in a ref so the listener registered once on the
+    // native map keeps forwarding to the current callback across recompositions.
+    val currentOnMapTap by rememberUpdatedState(onMapTap)
 
     DisposableEffect(lifecycleOwner) {
         mapView.onCreate(null)
         mapView.getMapAsync { map ->
             if (holder.disposed) return@getMapAsync
             mapReady = map
+            map.addOnMapClickListener { latLng ->
+                currentOnMapTap?.invoke(latLng.latitude, latLng.longitude)
+                // Return false so the SDK keeps default click behavior (e.g. POI deselection).
+                false
+            }
             map.setStyle(Style.Builder().fromUri(STYLE_URL)) { style ->
                 if (holder.disposed) return@setStyle
                 runCatching {

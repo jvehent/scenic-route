@@ -23,6 +23,8 @@ class SettingsStore @Inject constructor(
             bufferMinutes = prefs[Keys.BUFFER_MINUTES] ?: 30,
             discoveryRadiusKm = prefs[Keys.DISCOVERY_RADIUS_KM] ?: 25,
             wifiOnlyUploads = prefs[Keys.WIFI_ONLY_UPLOADS] ?: false,
+            gpsSamplingSeconds = (prefs[Keys.GPS_SAMPLING_SECONDS] ?: UserSettings.DEFAULT_GPS_SAMPLING_SECONDS)
+                .coerceIn(UserSettings.GPS_SAMPLING_RANGE),
         )
     }
 
@@ -42,11 +44,17 @@ class SettingsStore @Inject constructor(
         context.dataStore.edit { it[Keys.WIFI_ONLY_UPLOADS] = on }
     }
 
+    suspend fun setGpsSamplingSeconds(seconds: Int) {
+        val clamped = seconds.coerceIn(UserSettings.GPS_SAMPLING_RANGE)
+        context.dataStore.edit { it[Keys.GPS_SAMPLING_SECONDS] = clamped }
+    }
+
     private object Keys {
         val BUFFER_ENABLED = booleanPreferencesKey("buffer_enabled")
         val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
         val DISCOVERY_RADIUS_KM = intPreferencesKey("discovery_radius_km")
         val WIFI_ONLY_UPLOADS = booleanPreferencesKey("wifi_only_uploads")
+        val GPS_SAMPLING_SECONDS = intPreferencesKey("gps_sampling_seconds")
     }
 }
 
@@ -55,8 +63,11 @@ data class UserSettings(
     val bufferMinutes: Int,
     val discoveryRadiusKm: Int,
     val wifiOnlyUploads: Boolean,
+    val gpsSamplingSeconds: Int,
 ) {
     companion object {
         val VALID_BUFFER_MINUTES = listOf(0, 15, 30, 60, 120)
+        const val DEFAULT_GPS_SAMPLING_SECONDS = 10
+        val GPS_SAMPLING_RANGE = 1..60
     }
 }

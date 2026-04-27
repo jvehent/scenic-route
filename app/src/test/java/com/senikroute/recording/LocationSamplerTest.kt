@@ -40,42 +40,35 @@ class LocationSamplerTest {
     @Test fun rejects_low_accuracy_when_better_already_seen() {
         val s = LocationSampler(maxAccuracyM = 30f)
         s.accept(fix(40.0, -73.0, 1000L, accuracy = 5f))
-        // 6 m of movement would otherwise pass the displacement filter were it not for accuracy.
         val noisy = s.accept(fix(40.00006, -73.0, 5000L, accuracy = 80f))
         assertThat(noisy).isNull()
     }
 
     @Test fun rejects_below_min_interval() {
-        val s = LocationSampler(minIntervalMs = 2_000L, minDisplacementM = 10.0)
+        val s = LocationSampler(minIntervalMs = 2_000L)
         s.accept(fix(0.0, 0.0, 1_000L))
-        // 1 second later, 50 m further: still rejected by the time gate.
-        val out = s.accept(fix(0.00045, 0.0, 1_500L))
+        // 500 ms later: rejected by the time gate.
+        val out = s.accept(fix(0.001, 0.0, 1_500L))
         assertThat(out).isNull()
     }
 
-    @Test fun rejects_below_min_displacement_without_heading_change() {
-        val s = LocationSampler(minIntervalMs = 1_000L, minDisplacementM = 50.0)
-        s.accept(fix(0.0, 0.0, 1_000L, bearing = 90f))
-        // 5 m later, same heading, well past the time gate: still rejected.
-        val out = s.accept(fix(0.000045, 0.0, 5_000L, bearing = 90f))
-        assertThat(out).isNull()
-    }
-
-    @Test fun accepts_on_heading_change_even_below_displacement() {
-        val s = LocationSampler(minIntervalMs = 1_000L, minDisplacementM = 50.0, headingChangeDeg = 20f)
-        s.accept(fix(0.0, 0.0, 1_000L, bearing = 90f))
-        // 5 m further but bearing pivoted 90° — heading filter triggers.
-        val out = s.accept(fix(0.000045, 0.0, 5_000L, bearing = 0f))
-        assertThat(out).isNotNull()
-    }
-
-    @Test fun accepts_when_displacement_threshold_met() {
-        val s = LocationSampler(minIntervalMs = 1_000L, minDisplacementM = 10.0)
+    @Test fun accepts_after_time_gate_regardless_of_displacement() {
+        val s = LocationSampler(minIntervalMs = 2_000L)
         s.accept(fix(0.0, 0.0, 1_000L))
-        // 1° lat ≈ 111 km, so 0.001° ≈ 111 m — well over the 10 m threshold.
-        val out = s.accept(fix(0.001, 0.0, 5_000L))
+        // ~5 m of movement, well past the 2 s gate — accepted because sampling is now
+        // purely time-based (the old "displacement OR heading" gate was removed so users
+        // can configure dense GPS sampling without losing points to a stationary car).
+        val out = s.accept(fix(0.000045, 0.0, 5_000L))
         assertThat(out).isNotNull()
-        assertThat(out!!.lat).isWithin(1e-6).of(0.001)
+    }
+
+    @Test fun heading_change_bypasses_time_gate() {
+        val s = LocationSampler(minIntervalMs = 10_000L, headingChangeDeg = 20f)
+        s.accept(fix(0.0, 0.0, 1_000L, bearing = 90f))
+        // 1 s later, 90° pivot — heading change opens the gate so we capture the turn
+        // even when the user picked a long sampling interval.
+        val out = s.accept(fix(0.000045, 0.0, 2_000L, bearing = 0f))
+        assertThat(out).isNotNull()
     }
 
     @Test fun reset_clears_state() {

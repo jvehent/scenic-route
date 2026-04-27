@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.senikroute.R
 import com.senikroute.auth.AuthViewModel
 import com.senikroute.data.prefs.UserSettings
+
+private const val PRIVACY_POLICY_URL = "https://senikroute.com/privacy-policy.html"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +52,7 @@ fun SettingsScreen(
     authVm: AuthViewModel = hiltViewModel(),
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -79,10 +83,17 @@ fun SettingsScreen(
 
             LookbackBufferSection(settings, vm)
             HorizontalDivider()
+            GpsSamplingSection(settings, vm)
+            HorizontalDivider()
             DiscoverySection(settings, vm)
             HorizontalDivider()
             UploadSection(settings, vm)
             HorizontalDivider()
+
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
+            ) { Text("Privacy policy") }
 
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
@@ -126,6 +137,35 @@ private fun LookbackBufferSection(settings: UserSettings, vm: SettingsViewModel)
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun GpsSamplingSection(settings: UserSettings, vm: SettingsViewModel) {
+    val s = settings.gpsSamplingSeconds
+    val label = when {
+        s == 1 -> "Every second"
+        s < 60 -> "Every $s seconds"
+        else -> "Every minute"
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("GPS sampling", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "How often a GPS fix is recorded while you're driving. Shorter intervals give a more detailed track but use more battery.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = s.toFloat(),
+            onValueChange = { vm.setGpsSamplingSeconds(it.toInt().coerceIn(UserSettings.GPS_SAMPLING_RANGE)) },
+            valueRange = UserSettings.GPS_SAMPLING_RANGE.first.toFloat()..UserSettings.GPS_SAMPLING_RANGE.last.toFloat(),
+            steps = UserSettings.GPS_SAMPLING_RANGE.last - UserSettings.GPS_SAMPLING_RANGE.first - 1,
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("1 s", style = MaterialTheme.typography.labelSmall)
+            Text("60 s", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

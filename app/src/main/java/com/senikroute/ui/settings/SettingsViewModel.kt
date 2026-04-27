@@ -20,11 +20,18 @@ class SettingsViewModel @Inject constructor(
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            UserSettings(bufferEnabled = true, bufferMinutes = 30, discoveryRadiusKm = 25, wifiOnlyUploads = false),
+            UserSettings(
+                bufferEnabled = true,
+                bufferMinutes = 30,
+                discoveryRadiusKm = 25,
+                wifiOnlyUploads = false,
+                gpsSamplingSeconds = UserSettings.DEFAULT_GPS_SAMPLING_SECONDS,
+            ),
         )
 
     fun setBufferEnabled(on: Boolean) = viewModelScope.launch { store.setBufferEnabled(on) }
     fun setBufferMinutes(m: Int) = viewModelScope.launch { store.setBufferMinutes(m) }
     fun setDiscoveryRadius(km: Int) = viewModelScope.launch { store.setDiscoveryRadiusKm(km) }
     fun setWifiOnlyUploads(on: Boolean) = viewModelScope.launch { store.setWifiOnlyUploads(on) }
+    fun setGpsSamplingSeconds(s: Int) = viewModelScope.launch { store.setGpsSamplingSeconds(s) }
 }
