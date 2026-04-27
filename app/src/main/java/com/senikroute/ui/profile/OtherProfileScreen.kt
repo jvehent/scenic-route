@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.senikroute.data.profile.ProfileVisibility
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +42,7 @@ fun OtherProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(profile?.displayName?.ifBlank { profile?.anonHandle ?: "" } ?: "Profile") },
+                title = { SenikBrandTitle(subtitle = profile?.displayName?.ifBlank { profile?.anonHandle ?: "" } ?: "Profile") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

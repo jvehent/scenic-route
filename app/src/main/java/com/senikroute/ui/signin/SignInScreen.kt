@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.senikroute.R
 import com.senikroute.auth.AuthViewModel
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @Composable
 fun SignInScreen(
@@ -65,7 +66,17 @@ fun SignInScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    // Brand mark fixed in the top-left; main content centered in the remaining space.
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+        ) { SenikBrandTitle() }
+    Box(
+        modifier = Modifier.fillMaxSize().padding(top = 56.dp),
+        contentAlignment = Alignment.Center,
+    ) {
     Column(
         modifier = Modifier
             .widthIn(max = FormMaxWidth)
@@ -97,6 +108,7 @@ fun SignInScreen(
             Spacer(Modifier.height(16.dp))
             Text(it, color = MaterialTheme.colorScheme.error)
         }
+    }
     }
     }
 }

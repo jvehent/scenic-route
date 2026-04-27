@@ -53,6 +53,7 @@ import com.senikroute.ui.layout.FormMaxWidth
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
 import com.senikroute.ui.recording.WaypointSheet
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,7 +112,7 @@ fun DriveReviewScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Review drive") }) },
+        topBar = { TopAppBar(title = { SenikBrandTitle(subtitle = "Review drive") }) },
     ) { padding ->
         val d = drive
         if (d == null) {

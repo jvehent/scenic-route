@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.senikroute.ui.theme.SenikBrandTitle
 
 private const val PRIVACY_POLICY_URL = "https://senikroute.com/privacy-policy.html"
 
@@ -55,7 +56,7 @@ fun PrivacyAcceptanceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Privacy Policy") },
+                title = { SenikBrandTitle(subtitle = "Privacy Policy") },
                 actions = {
                     TextButton(onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) }) {
                         Text("View online")

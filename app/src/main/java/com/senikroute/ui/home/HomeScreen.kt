@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.senikroute.R
 import com.senikroute.data.db.entities.DriveEntity
 import com.senikroute.data.model.DriveStatus
+import com.senikroute.ui.theme.SenikBrandTitle
 import java.text.DateFormat
 import java.util.Date
 
@@ -79,7 +80,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = { SenikBrandTitle() },
                 actions = {
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = null)

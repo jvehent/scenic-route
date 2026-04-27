@@ -47,6 +47,7 @@ import com.senikroute.ui.layout.CardGridMinWidth
 import com.senikroute.ui.layout.mapHeight
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
+import com.senikroute.ui.theme.SenikBrandTitle
 import java.text.DateFormat
 import java.util.Date
 
@@ -82,7 +83,7 @@ fun MyDrivesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Your drives (${drives.size})") },
+                title = { SenikBrandTitle(subtitle = "Your drives (${drives.size})") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

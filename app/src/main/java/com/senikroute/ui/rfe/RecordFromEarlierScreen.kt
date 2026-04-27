@@ -35,6 +35,7 @@ import com.senikroute.data.db.entities.LocationBufferEntity
 import com.senikroute.data.db.entities.TrackPointEntity
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +58,7 @@ fun RecordFromEarlierScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.rfe_title)) },
+                title = { SenikBrandTitle(subtitle = stringResource(R.string.rfe_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

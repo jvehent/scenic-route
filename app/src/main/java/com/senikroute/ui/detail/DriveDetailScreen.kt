@@ -59,6 +59,7 @@ import com.senikroute.data.model.Visibility
 import com.senikroute.ui.layout.mapHeight
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
+import com.senikroute.ui.theme.SenikBrandTitle
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -85,7 +86,7 @@ fun DriveDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(drive?.title?.ifBlank { "Untitled drive" } ?: "Drive") },
+                title = { SenikBrandTitle(subtitle = drive?.title?.ifBlank { "Untitled drive" } ?: "Drive") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.senikroute.R
 import com.senikroute.auth.AuthViewModel
 import com.senikroute.data.prefs.UserSettings
+import com.senikroute.ui.theme.SenikBrandTitle
 
 private const val PRIVACY_POLICY_URL = "https://senikroute.com/privacy-policy.html"
 
@@ -57,7 +58,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { SenikBrandTitle(subtitle = stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

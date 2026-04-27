@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.senikroute.R
 import com.senikroute.data.discovery.DiscoveryDrive
 import com.senikroute.ui.layout.FormMaxWidth
+import com.senikroute.ui.theme.SenikBrandTitle
 import kotlin.math.absoluteValue
 
 @Composable
@@ -53,13 +54,29 @@ fun WelcomeScreen(
     val featured by vm.featured.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Brand mark pinned to the top-left, fixed across orientation/scroll changes.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+        ) { SenikBrandTitle() }
+
+        // Main content centered vertically in the remaining viewport (offset down so it
+        // doesn't collide with the brand mark). When the column overflows, the inner
+        // verticalScroll lets the user scroll through it without losing the centered feel.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 56.dp),
+            contentAlignment = Alignment.Center,
+        ) {
         Column(
             modifier = Modifier
                 .widthIn(max = FormMaxWidth * 1.5f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(top = 48.dp, bottom = 24.dp),
+                .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             HeaderBlock()
@@ -89,6 +106,7 @@ fun WelcomeScreen(
             }
 
             ActionsBlock(onSignIn = onSignIn, onBrowseAsGuest = onBrowseAsGuest)
+        }
         }
     }
 }

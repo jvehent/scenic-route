@@ -51,6 +51,7 @@ import com.senikroute.data.discovery.DiscoveryDrive
 import com.senikroute.ui.layout.mapHeight
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +79,7 @@ fun ExploreScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("${stringResource(R.string.nav_explore)} · ${radiusKm} km") },
+                title = { SenikBrandTitle(subtitle = "${stringResource(R.string.nav_explore)} · ${radiusKm} km") },
                 actions = {
                     IconButton(onClick = {
                         vm.refresh()

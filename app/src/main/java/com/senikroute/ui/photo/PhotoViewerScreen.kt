@@ -68,7 +68,7 @@ fun PhotoViewerScreen(
                     navigationIconContentColor = Color.White,
                     actionIconContentColor = Color.White,
                 ),
-                title = {},
+                title = { com.senikroute.ui.theme.SenikBrandTitle() },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.Close, contentDescription = "Close")

@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.senikroute.data.profile.Profile
 import com.senikroute.data.profile.ProfileVisibility
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +88,7 @@ fun MyProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Your profile") },
+                title = { SenikBrandTitle(subtitle = "Your profile") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

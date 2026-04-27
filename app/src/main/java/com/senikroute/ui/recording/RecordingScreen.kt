@@ -43,6 +43,7 @@ import com.senikroute.R
 import com.senikroute.recording.RecordingUiState
 import com.senikroute.ui.map.CameraBehavior
 import com.senikroute.ui.map.SenikMap
+import com.senikroute.ui.theme.SenikBrandTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +91,7 @@ fun RecordingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Recording") })
+            TopAppBar(title = { SenikBrandTitle(subtitle = "Recording") })
         },
     ) { padding ->
         Column(
