@@ -14,16 +14,25 @@ import com.senikroute.data.db.entities.WaypointEntity
 import com.senikroute.data.db.entities.WaypointPhotoEntity
 import com.senikroute.data.model.Visibility
 import com.senikroute.data.repo.DriveRepository
+import com.senikroute.data.model.SyncState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "FirestoreSync"
+
+private val LENIENT_JSON = Json { ignoreUnknownKeys = true }
 
 @Singleton
 class FirestoreSync @Inject constructor(
@@ -32,6 +41,173 @@ class FirestoreSync @Inject constructor(
     private val authRepo: AuthRepository,
     private val driveRepo: DriveRepository,
 ) {
+    /**
+     * Fetches all drives owned by the signed-in user from Firestore and writes any that
+     * are missing from the local DB. Used to repopulate drives after a fresh install +
+     * sign-in (e.g. user switched devices, reinstalled, restored from backup). Idempotent:
+     * drives already present locally are skipped, so re-running is a no-op.
+     *
+     * Photos are NOT downloaded into local files — only the remote URL is stored in
+     * [WaypointPhotoEntity]. The UI loads them on demand via Coil. Width/height/takenAt
+     * are not preserved across rehydration since they were only ever in the local DB.
+     *
+     * Returns the number of drives newly added to the local DB.
+     */
+    suspend fun pullOwnedDrives(): Int {
+        val state = authRepo.authState.first()
+        val signedIn = state as? AuthState.SignedIn ?: return 0
+        if (!signedIn.isEmailVerified) return 0
+        val uid = signedIn.uid
+        val have = driveRepo.localDriveIdsFor(uid)
+        val snap = firestore.collection("drives")
+            .whereEqualTo("ownerUid", uid)
+            .get()
+            .await()
+        var added = 0
+        for (doc in snap.documents) {
+            if (doc.id in have) continue
+            // Skip soft-deleted drives — those are owner-tombstoned, no need to re-surface them
+            // on a new install. They'll be purged by the cleanup function within 30 days anyway.
+            if (doc.getLong("deletedAt") != null) continue
+            runCatching { rehydrateOne(doc) }
+                .onSuccess { added++ }
+                .onFailure { Log.w(TAG, "pullOwnedDrives: failed to rehydrate one drive") }
+        }
+        Log.d(TAG, "pullOwnedDrives: rehydrated $added of ${snap.size()} server drives")
+        return added
+    }
+
+    private suspend fun rehydrateOne(doc: com.google.firebase.firestore.DocumentSnapshot) {
+        val driveId = doc.id
+        val ownerUid = doc.getString("ownerUid") ?: return
+        val startedAt = doc.getLong("startedAt") ?: 0L
+        // Reconstruct DriveEntity from the Firestore fields we wrote in toFirestoreMap().
+        val visibilityStr = (doc.getString("visibility") ?: "private").uppercase()
+        val statusStr = (doc.getString("status") ?: "synced").uppercase()
+        val drive = DriveEntity(
+            id = driveId,
+            ownerUid = ownerUid,
+            title = doc.getString("title").orEmpty(),
+            description = doc.getString("description").orEmpty(),
+            status = statusStr,
+            visibility = visibilityStr,
+            startLat = doc.getDouble("startLat") ?: 0.0,
+            startLng = doc.getDouble("startLng") ?: 0.0,
+            endLat = doc.getDouble("endLat"),
+            endLng = doc.getDouble("endLng"),
+            distanceM = (doc.getLong("distanceM") ?: 0L).toInt(),
+            durationS = (doc.getLong("durationS") ?: 0L).toInt(),
+            startedAt = startedAt,
+            endedAt = doc.getLong("endedAt"),
+            tags = (doc.get("tags") as? List<*>)?.filterIsInstance<String>().orEmpty(),
+            commentsEnabled = doc.getBoolean("commentsEnabled") ?: false,
+            geohash = doc.getString("geohash"),
+            trackUrl = doc.getString("trackUrl"),
+            trackBytes = doc.getLong("trackBytes"),
+            updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis(),
+            deletedAt = null,
+            syncState = SyncState.SYNCED.name,
+            serverVersion = (doc.getLong("version") ?: 1L).toInt(),
+        )
+
+        // Track GeoJSON: download, gunzip, parse into TrackPointEntity rows.
+        val track = drive.trackUrl?.let { downloadTrack(driveId, it) }.orEmpty()
+
+        // Waypoints + their attached photo URLs.
+        val wpDocs = firestore.collection("drives").document(driveId)
+            .collection("waypoints").get().await()
+        val waypoints = mutableListOf<WaypointEntity>()
+        val photos = mutableListOf<WaypointPhotoEntity>()
+        for (wp in wpDocs.documents) {
+            if (wp.getBoolean("hidden") == true) continue
+            val lat = wp.getDouble("lat") ?: continue
+            val lng = wp.getDouble("lng") ?: continue
+            waypoints += WaypointEntity(
+                id = wp.id,
+                driveId = driveId,
+                lat = lat,
+                lng = lng,
+                recordedAt = wp.getLong("recordedAt") ?: startedAt,
+                note = wp.getString("note"),
+                vehicleReqs = null,
+                syncState = SyncState.SYNCED.name,
+            )
+            val urls = (wp.get("photoUrls") as? List<*>)?.filterIsInstance<String>().orEmpty()
+            for ((idx, url) in urls.withIndex()) {
+                photos += WaypointPhotoEntity(
+                    id = "${wp.id}-rehydrated-$idx",
+                    waypointId = wp.id,
+                    localPath = null, // not on disk; UI loads from remoteUrl via Coil
+                    remoteUrl = url,
+                    width = null, height = null,
+                    takenAt = wp.getLong("recordedAt") ?: startedAt,
+                    syncState = SyncState.SYNCED.name,
+                )
+            }
+        }
+
+        driveRepo.rehydrateDrive(drive, track, waypoints, photos)
+    }
+
+    /**
+     * Downloads the gzipped GeoJSON track at [trackUrl] and parses it into
+     * [TrackPointEntity] rows. Skips the track if the download fails — the drive will
+     * still be visible locally, just without a polyline; a later sync run can retry.
+     *
+     * Note this hits the same defensive download path as PublicDriveRepository (HTTPS-only,
+     * size cap), but inlined here to avoid coupling the sync layer to the public-drive repo.
+     */
+    private suspend fun downloadTrack(driveId: String, trackUrl: String): List<TrackPointEntity> {
+        return runCatching {
+            withContext(Dispatchers.IO) {
+                val parsed = URL(trackUrl)
+                require(parsed.protocol.equals("https", ignoreCase = true)) { "non-https" }
+                val conn = parsed.openConnection() as HttpURLConnection
+                try {
+                    conn.requestMethod = "GET"
+                    conn.connectTimeout = 30_000
+                    conn.readTimeout = 30_000
+                    check(conn.responseCode in 200..299) { "HTTP ${conn.responseCode}" }
+                    val out = ByteArrayOutputStream()
+                    val buf = ByteArray(16 * 1024)
+                    conn.inputStream.use { input ->
+                        var total = 0L
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n <= 0) break
+                            total += n
+                            check(total <= MAX_TRACK_BYTES) { "track > $MAX_TRACK_BYTES" }
+                            out.write(buf, 0, n)
+                        }
+                    }
+                    val text = ByteArrayInputStream(out.toByteArray()).use { gz ->
+                        GZIPInputStream(gz).bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    }
+                    val parsedTrack = LENIENT_JSON.decodeFromString(TrackGeoJson.serializer(), text)
+                    val feature = parsedTrack.features.firstOrNull()
+                        ?: return@withContext emptyList<TrackPointEntity>()
+                    val coords = feature.geometry.coordinates
+                    val recordedAt = feature.properties.recordedAt
+                    coords.mapIndexed { i, c ->
+                        TrackPointEntity(
+                            driveId = driveId,
+                            seq = i,
+                            lat = c.getOrNull(1) ?: 0.0,
+                            lng = c.getOrNull(0) ?: 0.0,
+                            alt = c.getOrNull(2),
+                            speed = null,
+                            accuracy = null,
+                            recordedAt = recordedAt.getOrNull(i) ?: 0L,
+                        )
+                    }
+                } finally {
+                    conn.disconnect()
+                }
+            }
+        }.onFailure { Log.w(TAG, "downloadTrack: failed for one drive") }
+            .getOrDefault(emptyList())
+    }
+
     /** Returns the number of drives successfully synced. Throws on network/auth errors so the worker retries. */
     suspend fun syncAll(): Int {
         Log.d(TAG, "syncAll: begin")
@@ -134,7 +310,9 @@ class FirestoreSync @Inject constructor(
     }
 
     private suspend fun uploadPhoto(uid: String, driveId: String, photo: WaypointPhotoEntity): String? {
-        val file = File(photo.localPath).takeIf { it.exists() } ?: return null
+        // Rehydrated photos have no local file — they already live in the cloud.
+        val localPath = photo.localPath ?: return null
+        val file = File(localPath).takeIf { it.exists() } ?: return null
         val ref = storage.reference
             .child("users/$uid/drives/$driveId/waypoints/${photo.waypointId}/${photo.id}.jpg")
         ref.putFile(Uri.fromFile(file)).await()

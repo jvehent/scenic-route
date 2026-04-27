@@ -214,6 +214,29 @@ class DriveRepository @Inject constructor(
         waypointPhotoDao.upsert(photo.copy(remoteUrl = remoteUrl, syncState = SyncState.SYNCED.name))
     }
 
+    /**
+     * Inserts a drive + its track + waypoints + photos from a server snapshot. Used by the
+     * post-sign-in pull pass to repopulate the local DB on a fresh install. Skips the drive
+     * entirely if it already exists locally — the caller has already filtered by id, but
+     * being defensive avoids clobbering any in-progress local edits during a race.
+     */
+    suspend fun rehydrateDrive(
+        drive: DriveEntity,
+        track: List<TrackPointEntity>,
+        waypoints: List<WaypointEntity>,
+        photos: List<WaypointPhotoEntity>,
+    ) {
+        if (driveDao.getById(drive.id) != null) return
+        driveDao.upsert(drive)
+        if (track.isNotEmpty()) trackPointDao.insertAll(track)
+        for (wp in waypoints) waypointDao.upsert(wp)
+        for (photo in photos) waypointPhotoDao.upsert(photo)
+    }
+
+    /** Returns the IDs of all drives currently in the local DB for [ownerUid]. */
+    suspend fun localDriveIdsFor(ownerUid: String): Set<String> =
+        driveDao.idsFor(ownerUid).toSet()
+
     suspend fun getDirtyDrivesFor(ownerUid: String) = driveDao.getPendingSync(ownerUid)
     suspend fun getPendingWaypoints(driveId: String) = waypointDao.getPendingSync(driveId)
     suspend fun getPendingPhotos(driveId: String) = waypointPhotoDao.getPendingSync(driveId)
@@ -247,7 +270,7 @@ class DriveRepository @Inject constructor(
         val doomedWaypoints = waypointDao.getOutsideTimeRange(driveId, keptStartTime, keptEndTime)
         val doomedPhotoPaths = doomedWaypoints
             .flatMap { waypointPhotoDao.get(it.id) }
-            .map { it.localPath }
+            .mapNotNull { it.localPath } // rehydrated photos have no local file
 
         trackPointDao.deleteOutsideSeqRange(driveId, from, to)
         waypointDao.deleteOutsideTimeRange(driveId, keptStartTime, keptEndTime)

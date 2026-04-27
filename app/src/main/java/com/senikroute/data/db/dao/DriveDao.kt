@@ -40,4 +40,7 @@ interface DriveDao {
 
     @Query("DELETE FROM drives WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("SELECT id FROM drives WHERE ownerUid = :uid")
+    suspend fun idsFor(uid: String): List<String>
 }

@@ -272,15 +272,20 @@ private fun WaypointCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     photos.forEach { p ->
-                        AsyncImage(
-                            model = p.remoteUrl ?: File(p.localPath),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onPhotoClick(p.localPath) },
-                        )
+                        // Prefer remoteUrl when present (works for rehydrated photos with no
+                        // local copy); fall back to the on-disk file for not-yet-uploaded ones.
+                        val viewerArg = p.remoteUrl ?: p.localPath
+                        if (viewerArg != null) {
+                            AsyncImage(
+                                model = p.remoteUrl ?: File(p.localPath!!),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onPhotoClick(viewerArg) },
+                            )
+                        }
                     }
                 }
             }

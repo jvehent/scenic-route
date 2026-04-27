@@ -18,8 +18,12 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Log.i(TAG, "doWork: starting attempt=$runAttemptCount")
         return try {
-            val n = firestoreSync.syncAll()
-            Log.i(TAG, "doWork: success synced=$n")
+            // Push first so any local edits land server-side before we look at the server's
+            // view of the world. Then pull any owned drives missing from the local DB
+            // (this is what makes "reinstall + sign back in" actually recover prior drives).
+            val pushed = firestoreSync.syncAll()
+            val pulled = firestoreSync.pullOwnedDrives()
+            Log.i(TAG, "doWork: success pushed=$pushed pulled=$pulled")
             Result.success()
         } catch (t: Throwable) {
             Log.e(TAG, "doWork: failed", t)

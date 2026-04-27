@@ -20,7 +20,10 @@ import androidx.room.PrimaryKey
 data class WaypointPhotoEntity(
     @PrimaryKey val id: String,
     val waypointId: String,
-    val localPath: String,
+    // Null for photos rehydrated from the cloud (no on-disk copy yet) — UI must
+    // fall back to remoteUrl in that case. Non-null for photos captured locally
+    // before they're uploaded.
+    val localPath: String?,
     val remoteUrl: String? = null,
     val width: Int? = null,
     val height: Int? = null,

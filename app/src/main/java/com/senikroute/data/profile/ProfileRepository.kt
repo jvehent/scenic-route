@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.senikroute.auth.AuthRepository
 import com.senikroute.auth.AuthState
+import com.senikroute.data.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,7 @@ private const val TAG = "ProfileRepo"
 class ProfileRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authRepo: AuthRepository,
+    private val syncScheduler: SyncScheduler,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -104,6 +106,11 @@ class ProfileRepository @Inject constructor(
             authRepo.authState.distinctUntilChanged().collect { state ->
                 if (state is AuthState.SignedIn && state.isEmailVerified) {
                     ensureProfile(state.uid, state.displayName, state.photoUrl)
+                    // Kick off a sync run so the SyncWorker's pull pass repopulates any
+                    // drives this user owns server-side that aren't in the local DB yet.
+                    // Critical for the reinstall + sign-back-in path — without it, prior
+                    // recordings stay invisible until something else triggers a sync.
+                    syncScheduler.scheduleNow()
                 }
             }
         }
