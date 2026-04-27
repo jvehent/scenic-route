@@ -302,7 +302,7 @@ The lookback buffer lets the user say "actually, that *last* stretch was beautif
 
 **Capture.** A lightweight location listener runs in the background whenever the app has location permission and the buffer is enabled (default: on, 30-minute window). It uses coarser parameters than active recording — 5 s request interval, 30 m displacement, accuracy filter at 50 m — to keep battery cost low. Measured impact target: < 2% battery per hour while idle.
 
-**Lifecycle.** The listener runs as a short-lived job scheduled by `WorkManager` when the device is moving (detected via activity recognition: `DetectedActivity.IN_VEHICLE` or `ON_BICYCLE` — plus a manual override for walks/motorcycle). When the user is stationary for >10 min, the listener unregisters and re-registers on next motion. This avoids "always-on GPS" semantics, which is both a battery and a privacy concern.
+**Lifecycle.** The buffer is a foreground service gated on the `bufferEnabled` setting only. The original plan also gated it on activity recognition (`DetectedActivity.IN_VEHICLE` / `ON_BICYCLE`) so it would only sample GPS while the device was moving, but we removed that — it required the `ACTIVITY_RECOGNITION` permission, which Play Store renders as "Physical activity" in the data-safety form and reads creepy for a scenic-drive app. Battery cost is kept acceptable by using `PRIORITY_BALANCED_POWER_ACCURACY` (network-assisted, not GPS-only) at the 5 s interval; the OS heavily downsamples when the device is stationary.
 
 **Storage.** Points go into the `location_buffer` table (never `track_points`, never `sync_queue`). Retention: rows older than `buffer_minutes` are pruned on every write. Size budget: at 5 s sampling, 30 min ≈ 360 rows ≈ tens of KB.
 
@@ -524,7 +524,7 @@ Cloud Storage rules follow the same pattern: `/tracks/{driveId}.geojson.gz` is r
 
 - **M0 — Scaffolding (1 wk).** Empty Android project, Firebase hooked up, Google sign-in working, Compose navigation skeleton, CI.
 - **M1 — Record & review local (2 wks).** Foreground recording service, Room persistence, recording UI, drive review & detail screens, waypoint vehicle annotations. No backend yet.
-- **M2 — Lookback buffer (0.5 wk).** Background listener + activity recognition, buffer table with retention, "Record from earlier" UI.
+- **M2 — Lookback buffer (0.5 wk).** Foreground listener service, buffer table with retention, "Record from earlier" UI.
 - **M3 — Sync to Firestore (1.5 wks).** Sync queue, Cloud Functions (geohash fan-out, deletion cascade), security rules, photo upload, data export.
 - **M4 — Discovery (1.5 wks).** Geohash indexing, Explore screen, tracking mode, vehicle-summary filtering.
 - **M5 — Profiles & Conversations (1.5 wks).** Profile screens (own + other), visibility toggle, anonymous-handle attribution, comments (threads + realtime), FCM notifications, helpful-answer mechanic, points aggregator function.
