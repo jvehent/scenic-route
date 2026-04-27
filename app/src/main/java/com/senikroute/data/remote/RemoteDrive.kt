@@ -20,6 +20,8 @@ data class RemoteDrive(
     val centroidLat: Double?,
     val centroidLng: Double?,
     val trackUrl: String?,
+    // Owner opt-in flag for comments. Absent on legacy docs (treated as off).
+    val commentsEnabled: Boolean,
 )
 
 data class RemoteWaypoint(

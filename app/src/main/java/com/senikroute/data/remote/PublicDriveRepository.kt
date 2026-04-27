@@ -42,6 +42,7 @@ class PublicDriveRepository @Inject constructor(
             centroidLat = doc.getDouble("centroidLat"),
             centroidLng = doc.getDouble("centroidLng"),
             trackUrl = doc.getString("trackUrl"),
+            commentsEnabled = doc.getBoolean("commentsEnabled") ?: false,
         )
     }
 

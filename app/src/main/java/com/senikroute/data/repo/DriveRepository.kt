@@ -171,6 +171,7 @@ class DriveRepository @Inject constructor(
         visibility: Visibility,
         tags: List<String>,
         coverWaypointId: String?,
+        commentsEnabled: Boolean,
     ): DriveEntity? {
         val d = driveDao.getById(driveId) ?: return null
         val updated = d.copy(
@@ -179,6 +180,7 @@ class DriveRepository @Inject constructor(
             visibility = visibility.name,
             tags = tags,
             coverWaypointId = coverWaypointId,
+            commentsEnabled = commentsEnabled,
             updatedAt = System.currentTimeMillis(),
             syncState = SyncState.DIRTY.name,
         )

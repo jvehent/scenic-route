@@ -185,6 +185,7 @@ private fun DriveEntity.toFirestoreMap(ownerUid: String, ownerAnonHandle: String
     put("coverPhotoUrl", null as String?)
     put("trackUrl", trackUrl)
     put("trackBytes", trackBytes)
+    put("commentsEnabled", commentsEnabled)
     put("updatedAt", updatedAt)
     put("deletedAt", deletedAt)
     put("version", serverVersion ?: 1)

@@ -22,7 +22,7 @@ import com.senikroute.data.db.entities.WaypointPhotoEntity
         WaypointPhotoEntity::class,
         LocationBufferEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

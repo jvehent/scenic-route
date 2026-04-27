@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -69,6 +70,7 @@ fun DriveReviewScreen(
     var description by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf(Visibility.PRIVATE) }
     var tagsCsv by remember { mutableStateOf("") }
+    var commentsEnabled by remember { mutableStateOf(false) }
     var initialized by remember { mutableStateOf(false) }
 
     // Tap-to-add mode + the lat/lng captured by the most recent map tap.
@@ -103,6 +105,7 @@ fun DriveReviewScreen(
             description = d.description
             visibility = Visibility.fromStored(d.visibility)
             tagsCsv = d.tags.joinToString(", ")
+            commentsEnabled = d.commentsEnabled
             initialized = true
         }
     }
@@ -202,7 +205,13 @@ fun DriveReviewScreen(
                 Text("Visibility", style = MaterialTheme.typography.labelLarge)
                 VisibilityRow(Visibility.PRIVATE, visibility, "Private — only you", "No one else can see this drive.") { visibility = it }
                 VisibilityRow(Visibility.UNLISTED, visibility, "Unlisted — share-by-link", "Anyone with the link can view, but it's not in discovery.") { visibility = it }
-                VisibilityRow(Visibility.PUBLIC, visibility, "Public — appears in discovery", "Visible in Explore; signed-in users can comment.") { visibility = it }
+                VisibilityRow(Visibility.PUBLIC, visibility, "Public — appears in discovery", "Visible in Explore; signed-in users can comment if you allow it below.") { visibility = it }
+
+                CommentsToggleRow(
+                    enabled = commentsEnabled,
+                    visibility = visibility,
+                    onChange = { commentsEnabled = it },
+                )
 
                 Spacer(Modifier.height(16.dp))
                 Row(
@@ -215,7 +224,7 @@ fun DriveReviewScreen(
                     ) { Text("Discard") }
                     Button(
                         modifier = Modifier.weight(1f),
-                        onClick = { vm.save(title, description, visibility, tagsCsv, onSaved) },
+                        onClick = { vm.save(title, description, visibility, tagsCsv, commentsEnabled, onSaved) },
                     ) { Text("Save") }
                 }
             }
@@ -448,6 +457,36 @@ private fun computeDistanceKm(points: List<com.senikroute.data.db.entities.Track
         )
     }
     return meters / 1000.0
+}
+
+@Composable
+private fun CommentsToggleRow(
+    enabled: Boolean,
+    visibility: Visibility,
+    onChange: (Boolean) -> Unit,
+) {
+    val publicEnough = visibility != Visibility.PRIVATE
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Allow comments", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                if (publicEnough) {
+                    "Off by default. When on, signed-in viewers can post comments and questions."
+                } else {
+                    "Only takes effect when the drive is unlisted or public."
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onChange,
+        )
+    }
 }
 
 @Composable

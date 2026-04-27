@@ -184,6 +184,13 @@ fun SenikNavHost(
             MyProfileScreen(
                 onBack = { navController.popBackStack() },
                 onOpenTrash = { navController.navigate(Destinations.TRASH) },
+                // Account deletion ends with the Firebase user gone + local DB wiped.
+                // Pop everything and land on the welcome screen as if it were a fresh install.
+                onAccountDeleted = {
+                    navController.navigate(Destinations.WELCOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
             )
         }
         composable(Destinations.TRASH) {

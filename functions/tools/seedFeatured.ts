@@ -385,6 +385,9 @@ async function seedDrive(d: SeedDrive) {
       west: Math.min(...lngs),
     },
     commentCount: 0,
+    // Featured drives explicitly allow comments — that's how visitors give feedback
+    // and ask the curator route-condition questions.
+    commentsEnabled: true,
     trackUrl,
     trackBytes,
     updatedAt: now,

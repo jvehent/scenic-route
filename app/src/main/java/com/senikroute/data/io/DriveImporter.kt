@@ -90,6 +90,7 @@ class DriveImporter @Inject constructor(
             visibility = com.senikroute.data.model.Visibility.PRIVATE,
             tags = emptyList(),
             coverWaypointId = null,
+            commentsEnabled = false,
         )
         return drive.id
     }

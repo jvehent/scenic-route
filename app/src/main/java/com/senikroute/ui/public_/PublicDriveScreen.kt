@@ -209,7 +209,7 @@ fun PublicDriveScreen(
                             WaypointCard(wp, onPhotoClick)
                         }
                     }
-                    if (drive.visibility == "public") {
+                    if (drive.visibility == "public" && drive.commentsEnabled) {
                         item {
                             CommentsSection(
                                 comments = comments,
@@ -236,6 +236,17 @@ fun PublicDriveScreen(
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                 )
                             }
+                        }
+                    } else if (drive.visibility == "public" && !drive.commentsEnabled) {
+                        // The owner published the drive publicly but kept comments off; tell
+                        // viewers explicitly so they don't think the section failed to load.
+                        item {
+                            Text(
+                                "The author has turned off comments for this drive.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
                         }
                     }
                     item { Spacer(Modifier.height(24.dp)) }

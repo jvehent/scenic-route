@@ -34,6 +34,9 @@ data class DriveEntity(
     val tags: List<String> = emptyList(),
     val vehicleSummary: VehicleSummary? = null,
     val geohash: String? = null,
+    // Off by default — owner must explicitly opt in to receive comments. Mirrored to
+    // Firestore + enforced server-side so the UI toggle isn't the only gate.
+    val commentsEnabled: Boolean = false,
     val commentCount: Int = 0,
     val trackUrl: String? = null,
     val trackBytes: Long? = null,

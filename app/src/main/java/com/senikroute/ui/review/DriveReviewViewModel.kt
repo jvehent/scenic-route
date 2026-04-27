@@ -46,6 +46,7 @@ class DriveReviewViewModel @Inject constructor(
         description: String,
         visibility: Visibility,
         tagsCsv: String,
+        commentsEnabled: Boolean,
         onDone: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -57,6 +58,7 @@ class DriveReviewViewModel @Inject constructor(
                 visibility = visibility,
                 tags = tags,
                 coverWaypointId = null,
+                commentsEnabled = commentsEnabled,
             )
             onDone()
         }

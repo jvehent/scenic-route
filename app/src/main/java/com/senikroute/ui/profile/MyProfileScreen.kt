@@ -18,17 +18,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,10 +57,13 @@ import com.senikroute.data.profile.ProfileVisibility
 fun MyProfileScreen(
     onBack: () -> Unit,
     onOpenTrash: () -> Unit,
+    onAccountDeleted: () -> Unit,
     vm: MyProfileViewModel = hiltViewModel(),
 ) {
     val profile by vm.profile.collectAsStateWithLifecycle()
     val saving by vm.saving.collectAsStateWithLifecycle()
+    val deleting by vm.deleting.collectAsStateWithLifecycle()
+    val signedInEmail by vm.signedInEmail.collectAsStateWithLifecycle()
     val trashedCount by vm.trashedCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -65,6 +72,7 @@ fun MyProfileScreen(
     var visibility by remember { mutableStateOf(ProfileVisibility.PRIVATE) }
     var error by remember { mutableStateOf<String?>(null) }
     var initialized by remember { mutableStateOf(false) }
+    var deleteDialogOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(profile) {
         val p = profile
@@ -143,7 +151,7 @@ fun MyProfileScreen(
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             HorizontalDivider()
-            androidx.compose.material3.OutlinedButton(
+            OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenTrash,
             ) {
@@ -177,9 +185,119 @@ fun MyProfileScreen(
                     Text("Save")
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Text(
+                "Danger zone",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                "Permanently delete your account, your drives, your photos, and the comments on your drives. " +
+                    "This is irreversible — there is no undo and no support flow that can recover the data.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !deleting && signedInEmail != null,
+                onClick = { deleteDialogOpen = true },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("Delete account and all data") }
         }
         }
     }
+
+    if (deleteDialogOpen) {
+        DeleteAccountDialog(
+            email = signedInEmail.orEmpty(),
+            deleting = deleting,
+            onDismiss = { if (!deleting) deleteDialogOpen = false },
+            onConfirm = {
+                vm.deleteAccount(
+                    onSuccess = {
+                        deleteDialogOpen = false
+                        Toast.makeText(context, "Account deleted", Toast.LENGTH_LONG).show()
+                        onAccountDeleted()
+                    },
+                    onError = { msg ->
+                        deleteDialogOpen = false
+                        error = msg
+                    },
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun DeleteAccountDialog(
+    email: String,
+    deleting: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    var typed by remember { mutableStateOf("") }
+    val matches = typed.trim().equals(email.trim(), ignoreCase = true) && email.isNotBlank()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Permanently delete your account?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "This will erase, irreversibly, from this device and from our servers:",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text("• every drive you've recorded", style = MaterialTheme.typography.bodyMedium)
+                Text("• every photo, waypoint, and GPS track in those drives", style = MaterialTheme.typography.bodyMedium)
+                Text("• every comment on your drives", style = MaterialTheme.typography.bodyMedium)
+                Text("• your profile and Senik account", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "There is no undo. Type your email address below to confirm.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    email,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it },
+                    label = { Text("Type email to confirm") },
+                    singleLine = true,
+                    enabled = !deleting,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = matches && !deleting,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                if (deleting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onError,
+                    )
+                } else {
+                    Text("Delete forever")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable

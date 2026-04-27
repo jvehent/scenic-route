@@ -39,11 +39,27 @@ The Service Provider may disclose User Provided and Automatically Collected Info
 
 **Opt-Out Rights**
 
-You can stop all collection of information by the Application easily by uninstalling it. You may use the standard uninstall processes as may be available as part of your mobile device or via the mobile application marketplace or network.
+You can stop all collection of information by the Application easily by uninstalling it. You may use the standard uninstall processes as may be available as part of your mobile device or via the mobile application marketplace or network. Uninstalling removes the Application and all its locally stored data from your device, but does not delete data already uploaded to the Service Provider's servers — for that, see **Account and Data Deletion** below.
+
+**Account and Data Deletion**
+
+You can permanently delete your account and all data associated with it at any time, directly from inside the Application. Open **Profile → Danger zone → Delete account and all data**, then confirm by typing your full email address. The deletion is irreversible and runs immediately.
+
+When you confirm deletion, the following are permanently removed:
+
+*   Every drive you have recorded — including the GPS track, waypoints, photos, notes, and vehicle annotations attached to those drives.
+*   Every comment posted on your drives by other users (the comments live on your drives, so they are removed when the drives are removed).
+*   Your profile (display name, bio, avatar reference, anonymous handle, points, statistics).
+*   Your Senik account itself (the underlying Firebase Authentication record). After deletion, signing in with the same Google account again will create a brand-new Senik account with no history.
+*   All locally cached data on the device (the local database and any photo files saved by the Application).
+
+Comments you posted on other users' drives are not automatically located by your account ID and may persist with your former anonymous handle attached. To request removal of those, email senikroute@googlegroups.com from the same email address that was attached to your account, including a description of the drives or comments to be removed.
+
+There is no recovery flow for a deleted account. There is no undo. If you sign back in after deletion, you start fresh.
 
 **Data Retention Policy**
 
-The Service Provider will retain User Provided data for as long as you use the Application and for a reasonable time thereafter. If you'd like them to delete User Provided Data that you have provided via the Application, please contact them at senikroute@googlegroups.com and they will respond in a reasonable time.
+The Service Provider will retain User Provided data for as long as you use the Application. You can delete it at any time using the in-app **Account and Data Deletion** flow described above, which acts immediately. If you would prefer to delete only some of your data, or you cannot use the in-app flow for any reason (e.g. you have lost access to the device or to the email account), please contact senikroute@googlegroups.com and the Service Provider will respond in a reasonable time.
 
 **Children**
 

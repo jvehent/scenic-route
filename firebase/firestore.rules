@@ -48,6 +48,9 @@ service cloud.firestore {
                       && request.auth.uid == request.resource.data.authorUid
                       && driveDoc(id).visibility == 'public'
                       && driveDoc(id).deletedAt == null
+                      // commentsEnabled defaults to false on legacy docs (the field will
+                      // be absent), so an explicit == true check is required to opt in.
+                      && driveDoc(id).get('commentsEnabled', false) == true
                       && request.resource.data.body is string
                       && request.resource.data.body.size() > 0
                       && request.resource.data.body.size() <= 4000;
