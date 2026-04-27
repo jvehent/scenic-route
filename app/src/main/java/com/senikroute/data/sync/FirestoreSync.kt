@@ -180,8 +180,21 @@ class FirestoreSync @Inject constructor(
                             out.write(buf, 0, n)
                         }
                     }
-                    val text = ByteArrayInputStream(out.toByteArray()).use { gz ->
-                        GZIPInputStream(gz).bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    val raw = out.toByteArray()
+                    Log.w(TAG, "downloadTrack: HTTP ${conn.responseCode} ${raw.size}B content-encoding=${conn.contentEncoding}")
+                    // OkHttp auto-decompresses responses with Content-Encoding: gzip.
+                    // Sniff the magic header so we don't double-decompress (or fail to
+                    // parse if the response was already auto-decompressed by the client).
+                    val isGzipped = raw.size >= 2 &&
+                        raw[0] == 0x1F.toByte() &&
+                        raw[1] == 0x8B.toByte()
+                    val text = if (isGzipped) {
+                        ByteArrayInputStream(raw).use { gz ->
+                            GZIPInputStream(gz).bufferedReader(Charsets.UTF_8).use { it.readText() }
+                        }
+                    } else {
+                        Log.w(TAG, "downloadTrack: response not gzipped, treating as raw text")
+                        String(raw, Charsets.UTF_8)
                     }
                     val parsedTrack = LENIENT_JSON.decodeFromString(TrackGeoJson.serializer(), text)
                     val feature = parsedTrack.features.firstOrNull()
