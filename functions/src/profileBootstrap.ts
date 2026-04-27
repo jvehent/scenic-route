@@ -41,11 +41,16 @@ export const onUserDocCreated = onDocumentCreated(
       .get();
     if (!collision.empty) handle = randomHandle();
 
+    // createdAt + updatedAt are stamped server-side here, ignoring whatever the
+    // client might have written. The Firestore rules also forbid those fields
+    // at create time, but defense-in-depth in case the rules ever drift.
+    const now = Date.now();
     await snap.ref.update({
       anonHandle: handle,
       points: 0,
       stats: { drivesPublished: 0, helpfulAnswers: 0 },
-      createdAt: data.createdAt ?? Date.now(),
+      createdAt: now,
+      updatedAt: now,
     });
     logger.info("onUserDocCreated: bootstrapped profile");
   },

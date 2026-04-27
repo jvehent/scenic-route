@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import com.senikroute.auth.AuthRepository
 import com.senikroute.auth.AuthState
 import com.senikroute.data.db.entities.DriveEntity
@@ -115,7 +116,15 @@ class FirestoreSync @Inject constructor(
             "track exceeds upload cap (${bytes.size} > $MAX_TRACK_BYTES bytes)"
         }
         val ref = storage.reference.child("tracks/$driveId.geojson.gz")
-        ref.putBytes(bytes).await()
+        // Pin Content-Type to application/gzip so storage rules can rely on the type
+        // check rather than letting the SDK infer the value. The storage rule
+        // (firebase/storage.rules:33) restricts uploads to gzip/x-gzip/octet-stream;
+        // matching that explicitly closes the door on a future SDK changing its
+        // mime-detection heuristics in a way that bypasses the rule.
+        val metadata = StorageMetadata.Builder()
+            .setContentType("application/gzip")
+            .build()
+        ref.putBytes(bytes, metadata).await()
         val url = ref.downloadUrl.await()
         return url.toString() to bytes.size.toLong()
     }

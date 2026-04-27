@@ -13,11 +13,11 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if resource.data.visibility == 'public' || request.auth.uid == uid;
       // Create rule restricts the field set so a new user cannot inject
-      // server-controlled fields (points, stats, anonHandle, createdAt) at create time.
+      // server-controlled fields. createdAt + updatedAt are server-stamped by
+      // onUserDocCreated and onUserDocWritten — clients must not set either.
       allow create: if verified() && request.auth.uid == uid
                     && request.resource.data.keys().hasOnly(
-                         ['displayName', 'avatarUrl', 'bio', 'visibility',
-                          'createdAt', 'updatedAt']
+                         ['displayName', 'avatarUrl', 'bio', 'visibility']
                        )
                     && (!('visibility' in request.resource.data)
                         || request.resource.data.visibility in ['private', 'public']);

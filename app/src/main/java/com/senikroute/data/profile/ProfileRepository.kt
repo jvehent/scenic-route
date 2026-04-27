@@ -84,7 +84,8 @@ class ProfileRepository @Inject constructor(
         val ref = firestore.collection("users").document(uid)
         val snap = runCatching { ref.get().await() }.getOrNull() ?: return
         if (snap.exists()) return
-        val now = System.currentTimeMillis()
+        // Only the field set the create rule whitelists. createdAt + updatedAt are
+        // stamped server-side by onUserDocCreated; sending them here is rejected.
         runCatching {
             ref.set(
                 mapOf(
@@ -92,8 +93,6 @@ class ProfileRepository @Inject constructor(
                     "avatarUrl" to defaultAvatarUrl,
                     "bio" to "",
                     "visibility" to "private",
-                    "createdAt" to now,
-                    "updatedAt" to now,
                 ),
             ).await()
         }.onFailure { Log.w(TAG, "ensureProfile failed") } // no uid in production logs

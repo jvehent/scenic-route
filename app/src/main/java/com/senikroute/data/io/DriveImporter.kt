@@ -33,12 +33,18 @@ class DriveImporter @Inject constructor(
 
             val name = displayNameFor(uri)
             val format = formatFor(name) ?: error("Pick a .gpx or .kml file")
-            val parsedDrives: List<ImportedDrive> = context.contentResolver.openInputStream(uri)?.use { input ->
+            // Buffer the whole file into memory with a hard cap before parsing — defends
+            // against XML DoS (billion-laughs / quadratic blowup) and runaway files. 10 MB
+            // is well above any realistic GPX/KML the app would legitimately import.
+            val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+                readAllCapped(input, MAX_IMPORT_BYTES)
+            } ?: error("Could not open the file")
+            val parsedDrives: List<ImportedDrive> = bytes.inputStream().use { input ->
                 when (format) {
                     GeoFormat.GPX -> listOf(parseGpx(input))
                     GeoFormat.KML -> parseKml(input)
                 }
-            } ?: error("Could not open the file")
+            }
 
             require(parsedDrives.isNotEmpty()) { "Nothing to import" }
 
@@ -121,9 +127,35 @@ private fun parseTimeOrNull(s: String?): Long? {
     return runCatching { ISO_PARSER.parse(trimmed)?.time }.getOrNull()
 }
 
+private const val MAX_IMPORT_BYTES = 10L * 1024 * 1024
+
+private fun readAllCapped(input: InputStream, cap: Long): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buf = ByteArray(16 * 1024)
+    var total = 0L
+    while (true) {
+        val n = input.read(buf)
+        if (n <= 0) break
+        total += n
+        require(total <= cap) { "Import file too large (>${cap / (1024 * 1024)} MB)" }
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
+}
+
+// Android's XmlPullParser (KXmlParser) does NOT expand external entities by default,
+// but explicitly disabling DOCTYPE processing is belt-and-braces against future
+// runtime swaps. Wrapped in runCatching because some pullparser impls reject features
+// they consider already-default and we don't want a feature mismatch to break imports.
+private fun harden(parser: org.xmlpull.v1.XmlPullParser) {
+    runCatching { parser.setFeature("http://xmlpull.org/v1/doc/features.html#process-docdecl", false) }
+    runCatching { parser.setFeature("http://xmlpull.org/v1/doc/features.html#validation", false) }
+}
+
 internal fun parseGpx(input: InputStream): ImportedDrive {
     val parser = Xml.newPullParser()
     parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+    harden(parser)
     parser.setInput(input, "UTF-8")
 
     var driveTitle = ""
@@ -216,6 +248,7 @@ internal fun parseGpx(input: InputStream): ImportedDrive {
 internal fun parseKml(input: InputStream): List<ImportedDrive> {
     val parser = Xml.newPullParser()
     parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+    harden(parser)
     parser.setInput(input, "UTF-8")
 
     val out = mutableListOf<ImportedDrive>()
