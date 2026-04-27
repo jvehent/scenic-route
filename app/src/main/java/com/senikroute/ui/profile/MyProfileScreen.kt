@@ -97,11 +97,29 @@ fun MyProfileScreen(
         },
     ) { padding ->
         val p = profile
-        if (p == null) {
+        // While account deletion is in flight (or just finished, before the navigator
+        // pops us out), the local profile row vanishes and `profile` flips to null.
+        // Skip the loading spinner in that case — the dialog is showing a spinner of
+        // its own, and falling into the early-return here would freeze the user on a
+        // "Your Profile" screen with no way out if navigation hiccups.
+        if (p == null && !deleting) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
+            return@Scaffold
+        }
+        if (p == null) {
+            // Deletion is wrapping up; the navigator will land us on Welcome shortly.
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Deleting your account…",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
             return@Scaffold
         }
 

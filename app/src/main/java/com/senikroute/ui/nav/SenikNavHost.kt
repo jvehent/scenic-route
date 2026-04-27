@@ -185,10 +185,15 @@ fun SenikNavHost(
                 onBack = { navController.popBackStack() },
                 onOpenTrash = { navController.navigate(Destinations.TRASH) },
                 // Account deletion ends with the Firebase user gone + local DB wiped.
-                // Pop everything and land on the welcome screen as if it were a fresh install.
+                // Pop the entire graph (popUpTo(graph.id) is the textbook pattern for
+                // "reset the back stack") so the user lands on WELCOME with no way back.
+                // popUpTo(0) silently no-ops in Compose Navigation since 0 isn't a real
+                // destination ID — that's how this used to leave the user stuck on the
+                // spinning Profile screen.
                 onAccountDeleted = {
                     navController.navigate(Destinations.WELCOME) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
             )
