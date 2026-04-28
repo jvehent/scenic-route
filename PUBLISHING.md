@@ -22,6 +22,7 @@ Before you open the Play Console, have these ready:
 | **Feature graphic 1024×500 PNG** | Top of Play Store listing | Design — first impression for installs |
 | **Phone screenshots (2–8, 16:9 or 9:16)** | App listing — heavily affects install rate | Capture on a real device |
 | **Manual account-deletion process documented** | Google now enforces in-app or "easy" account deletion | Add a Settings entry that emails support, OR build the in-app flow first (TODO.md) |
+| **Google Drive API enabled in GCP** | Profile → "Export to Drive" silently fails (`Google Drive API has not been used in project … or it is disabled`) until this is on | https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=&lt;project-number&gt; — click **Enable**, wait ~2 min for propagation. Free tier is fine for personal use (1k req / 100s / user) |
 
 ---
 
