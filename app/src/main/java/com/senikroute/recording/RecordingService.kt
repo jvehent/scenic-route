@@ -62,8 +62,27 @@ class RecordingService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> startRecording()
             ACTION_STOP -> stopRecording()
+            ACTION_STOP_AND_EXIT -> stopAndExit()
         }
         return START_STICKY
+    }
+
+    /**
+     * Triggered by the notification's "Stop & exit" action. Stops the active recording
+     * (which finalizes the drive as a draft for review later), tears down the buffer
+     * service so the user gets the "everything is off" state they expect, and tells
+     * MainActivity to finish so the app process can be reclaimed.
+     */
+    private fun stopAndExit() {
+        stopRecording()
+        runCatching {
+            startService(
+                Intent(this, BufferService::class.java).apply { action = BufferService.ACTION_STOP },
+            )
+        }
+        // Broadcast to MainActivity so it can call finishAndRemoveTask(). Setting the
+        // package explicitly keeps the broadcast in-app (not all bystander apps).
+        sendBroadcast(Intent(ACTION_EXIT_APP).setPackage(packageName))
     }
 
     private fun startRecording() {
@@ -136,6 +155,19 @@ class RecordingService : LifecycleService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
+        // "Stop & exit" notification action — stops the recording, stops the buffer,
+        // and finishes MainActivity so the app process can be reclaimed by the OS.
+        // Targets ACTION_STOP_AND_EXIT on this same service via getService().
+        val stopIntent = Intent(this, RecordingService::class.java).apply {
+            action = ACTION_STOP_AND_EXIT
+        }
+        val stopPending = PendingIntent.getService(
+            this,
+            REQUEST_CODE_STOP,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.recording_notification_title))
             .setContentText(text)
@@ -143,6 +175,11 @@ class RecordingService : LifecycleService() {
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(contentIntent)
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                getString(R.string.recording_stop_and_exit),
+                stopPending,
+            )
             .setOnlyAlertOnce(true)
             .build()
     }
@@ -165,7 +202,11 @@ class RecordingService : LifecycleService() {
     companion object {
         const val ACTION_START = "com.senikroute.recording.START"
         const val ACTION_STOP = "com.senikroute.recording.STOP"
+        const val ACTION_STOP_AND_EXIT = "com.senikroute.recording.STOP_AND_EXIT"
+        /** In-process broadcast MainActivity listens for to call finishAndRemoveTask(). */
+        const val ACTION_EXIT_APP = "com.senikroute.EXIT_APP"
         const val CHANNEL_ID = "recording"
         const val NOTIFICATION_ID = 0x5C_E1
+        private const val REQUEST_CODE_STOP = 1
     }
 }

@@ -60,9 +60,23 @@ class BufferService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> start()
             ACTION_STOP -> stop()
+            ACTION_DISABLE -> disableAndStop()
             else -> start()
         }
         return START_STICKY
+    }
+
+    /**
+     * Triggered by the buffer notification's "Turn off buffer" action. Disables the
+     * setting persistently (BufferController.observeSettings sees the change and won't
+     * auto-restart the service) and stops this service immediately so the notification
+     * goes away. The user can re-enable from Settings → Lookback buffer.
+     */
+    private fun disableAndStop() {
+        lifecycleScope.launch {
+            runCatching { settings.setBufferEnabled(false) }
+            stop()
+        }
     }
 
     private fun start() {
@@ -113,6 +127,16 @@ class BufferService : LifecycleService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+
+        // "Turn off buffer" action — disables the setting persistently and stops the
+        // service so the user can kill it without going to Settings → Lookback buffer.
+        val disablePending = PendingIntent.getService(
+            this,
+            REQUEST_CODE_DISABLE,
+            Intent(this, BufferService::class.java).apply { action = ACTION_DISABLE },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.buffer_notification_title))
             .setContentText(getString(R.string.buffer_notification_text))
@@ -121,6 +145,11 @@ class BufferService : LifecycleService() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setContentIntent(intent)
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                getString(R.string.buffer_notification_disable),
+                disablePending,
+            )
             .build()
     }
 
@@ -142,7 +171,9 @@ class BufferService : LifecycleService() {
     companion object {
         const val ACTION_START = "com.senikroute.buffer.START"
         const val ACTION_STOP = "com.senikroute.buffer.STOP"
+        const val ACTION_DISABLE = "com.senikroute.buffer.DISABLE"
         const val CHANNEL_ID = "lookback_buffer"
         const val NOTIFICATION_ID = 0x5C_E2
+        private const val REQUEST_CODE_DISABLE = 1
     }
 }

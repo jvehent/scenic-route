@@ -30,6 +30,8 @@
     <string name="recording_notification_title">Recording a drive</string>
 
     <string name="recording_stop">Stop</string>
+    <string name="recording_stop_and_exit">Stop &amp; exit</string>
+    <string name="buffer_notification_disable">Turn off buffer</string>
     <string name="recording_add_waypoint">Add waypoint</string>
     <string name="recording_distance">%1$.1f km</string>
     <string name="recording_duration">%1$02d:%2$02d</string>
