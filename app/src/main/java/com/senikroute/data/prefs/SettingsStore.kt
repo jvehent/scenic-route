@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,8 @@ class SettingsStore @Inject constructor(
             wifiOnlyUploads = prefs[Keys.WIFI_ONLY_UPLOADS] ?: false,
             gpsSamplingSeconds = (prefs[Keys.GPS_SAMPLING_SECONDS] ?: UserSettings.DEFAULT_GPS_SAMPLING_SECONDS)
                 .coerceIn(UserSettings.GPS_SAMPLING_RANGE),
+            driveAutoSave = prefs[Keys.DRIVE_AUTO_SAVE] ?: false,
+            driveFolderName = prefs[Keys.DRIVE_FOLDER_NAME] ?: UserSettings.DEFAULT_DRIVE_FOLDER,
         )
     }
 
@@ -49,12 +52,23 @@ class SettingsStore @Inject constructor(
         context.dataStore.edit { it[Keys.GPS_SAMPLING_SECONDS] = clamped }
     }
 
+    suspend fun setDriveAutoSave(on: Boolean) {
+        context.dataStore.edit { it[Keys.DRIVE_AUTO_SAVE] = on }
+    }
+
+    suspend fun setDriveFolderName(name: String) {
+        val safe = name.trim().take(120).ifBlank { UserSettings.DEFAULT_DRIVE_FOLDER }
+        context.dataStore.edit { it[Keys.DRIVE_FOLDER_NAME] = safe }
+    }
+
     private object Keys {
         val BUFFER_ENABLED = booleanPreferencesKey("buffer_enabled")
         val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
         val DISCOVERY_RADIUS_KM = intPreferencesKey("discovery_radius_km")
         val WIFI_ONLY_UPLOADS = booleanPreferencesKey("wifi_only_uploads")
         val GPS_SAMPLING_SECONDS = intPreferencesKey("gps_sampling_seconds")
+        val DRIVE_AUTO_SAVE = booleanPreferencesKey("drive_auto_save")
+        val DRIVE_FOLDER_NAME = stringPreferencesKey("drive_folder_name")
     }
 }
 
@@ -64,10 +78,13 @@ data class UserSettings(
     val discoveryRadiusKm: Int,
     val wifiOnlyUploads: Boolean,
     val gpsSamplingSeconds: Int,
+    val driveAutoSave: Boolean,
+    val driveFolderName: String,
 ) {
     companion object {
         val VALID_BUFFER_MINUTES = listOf(0, 15, 30, 60, 120)
         const val DEFAULT_GPS_SAMPLING_SECONDS = 10
         val GPS_SAMPLING_RANGE = 1..60
+        const val DEFAULT_DRIVE_FOLDER = "Senik Drives"
     }
 }

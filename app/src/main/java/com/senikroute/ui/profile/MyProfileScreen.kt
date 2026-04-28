@@ -52,6 +52,12 @@ import coil.compose.AsyncImage
 import com.senikroute.data.profile.Profile
 import com.senikroute.data.profile.ProfileVisibility
 import com.senikroute.ui.theme.SenikBrandTitle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,6 +174,9 @@ fun MyProfileScreen(
             )
 
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            HorizontalDivider()
+            DriveTakeoutSection(vm)
 
             HorizontalDivider()
             OutlinedButton(
@@ -317,6 +326,110 @@ private fun DeleteAccountDialog(
             TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancel") }
         },
     )
+}
+
+/**
+ * Google Drive takeout + auto-save section. Two affordances:
+ *  - "Auto-save new drives to Drive" toggle + a folder name field
+ *  - "Export all drives now" button — runs the consent flow if needed, then bulk-uploads
+ *    every owned drive into the configured folder as KML
+ */
+@Composable
+private fun DriveTakeoutSection(vm: MyProfileViewModel) {
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val takeoutState by vm.takeoutState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+
+    // Consent flow launcher — fires when AuthorizationClient needs user-visible consent.
+    val consentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        vm.parseConsentAndExport(result.data)
+    }
+
+    var folderEdit by remember(settings.driveFolderName) { mutableStateOf(settings.driveFolderName) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Google Drive backup", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Drives are stored in your Google Drive as KML files in a folder you control. " +
+                "Senik only sees files it creates — it cannot read or modify the rest of your Drive.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Auto-save new drives", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "When you finalize a drive, also upload it to Drive.",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = settings.driveAutoSave,
+                onCheckedChange = { vm.setDriveAutoSave(it) },
+            )
+        }
+
+        OutlinedTextField(
+            value = folderEdit,
+            onValueChange = { folderEdit = it },
+            label = { Text("Drive folder name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { vm.setDriveFolderName(folderEdit) },
+                enabled = folderEdit.trim() != settings.driveFolderName && folderEdit.trim().isNotEmpty(),
+            ) { Text("Save folder") }
+        }
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = takeoutState !is MyProfileViewModel.TakeoutState.Running,
+            onClick = {
+                scope.launch {
+                    val token = vm.beginTakeoutSilent()
+                    if (token != null) {
+                        vm.runTakeout(token)
+                    } else {
+                        val sender = vm.consentIntentSender()
+                        if (sender != null) {
+                            consentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                        }
+                    }
+                }
+            },
+        ) {
+            Text("Export all drives to Drive now")
+        }
+
+        when (val s = takeoutState) {
+            is MyProfileViewModel.TakeoutState.Idle -> Unit
+            is MyProfileViewModel.TakeoutState.Running -> {
+                val pct = if (s.total > 0) (s.current * 100 / s.total) else 0
+                Text(
+                    "Uploading ${s.current} / ${s.total} ($pct%) — ${s.currentTitle}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            is MyProfileViewModel.TakeoutState.Done -> {
+                Text(
+                    "Done. ${s.uploaded} uploaded, ${s.failed} failed → folder \"${s.folder}\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (s.failed == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = { vm.dismissTakeout() }) { Text("Dismiss") }
+            }
+            is MyProfileViewModel.TakeoutState.Error -> {
+                Text(s.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { vm.dismissTakeout() }) { Text("Dismiss") }
+            }
+        }
+    }
 }
 
 @Composable

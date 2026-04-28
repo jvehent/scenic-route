@@ -25,15 +25,8 @@ class DriveExporter @Inject constructor(
     private val driveRepo: DriveRepository,
 ) {
     suspend fun export(driveId: String, format: GeoFormat): Uri? = withContext(Dispatchers.IO) {
+        val xml = renderToString(driveId, format) ?: return@withContext null
         val drive = driveRepo.observeDrive(driveId).first() ?: return@withContext null
-        val track = driveRepo.observeTrack(driveId).first()
-        val waypoints = driveRepo.observeWaypoints(driveId).first()
-
-        val xml = when (format) {
-            GeoFormat.GPX -> renderGpx(drive.title, drive.description, drive.startedAt, track, waypoints)
-            GeoFormat.KML -> renderKml(drive.title, drive.description, track, waypoints)
-        }
-
         val safe = drive.title.takeIf { it.isNotBlank() }
             ?.replace(Regex("[^A-Za-z0-9_-]+"), "_")
             ?: driveId.take(8)
@@ -41,6 +34,31 @@ class DriveExporter @Inject constructor(
         val file = File(dir, "$safe.${format.ext}")
         file.writeText(xml, Charsets.UTF_8)
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+
+    /**
+     * Renders the drive at [driveId] in [format] as an in-memory string. Used by the
+     * Google Drive takeout flow which uploads bytes directly to the Drive REST API
+     * without going through the on-disk cache + FileProvider that share-intents need.
+     * Returns null if the drive doesn't exist locally.
+     */
+    suspend fun renderToString(driveId: String, format: GeoFormat): String? = withContext(Dispatchers.IO) {
+        val drive = driveRepo.observeDrive(driveId).first() ?: return@withContext null
+        val track = driveRepo.observeTrack(driveId).first()
+        val waypoints = driveRepo.observeWaypoints(driveId).first()
+        when (format) {
+            GeoFormat.GPX -> renderGpx(drive.title, drive.description, drive.startedAt, track, waypoints)
+            GeoFormat.KML -> renderKml(drive.title, drive.description, track, waypoints)
+        }
+    }
+
+    /** Suggested filename for a drive's exported file, sanitized for filesystems. */
+    suspend fun fileNameFor(driveId: String, format: GeoFormat): String {
+        val drive = driveRepo.observeDrive(driveId).first()
+        val safe = drive?.title?.takeIf { it.isNotBlank() }
+            ?.replace(Regex("[^A-Za-z0-9_-]+"), "_")
+            ?: driveId.take(8)
+        return "$safe.${format.ext}"
     }
 
     private fun renderGpx(

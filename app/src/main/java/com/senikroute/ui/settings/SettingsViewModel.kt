@@ -26,6 +26,8 @@ class SettingsViewModel @Inject constructor(
                 discoveryRadiusKm = 25,
                 wifiOnlyUploads = false,
                 gpsSamplingSeconds = UserSettings.DEFAULT_GPS_SAMPLING_SECONDS,
+                driveAutoSave = false,
+                driveFolderName = UserSettings.DEFAULT_DRIVE_FOLDER,
             ),
         )
 

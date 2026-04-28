@@ -9,6 +9,8 @@ import com.senikroute.data.db.entities.WaypointEntity
 import com.senikroute.data.db.entities.WaypointPhotoEntity
 import com.senikroute.data.model.VehicleReqs
 import com.senikroute.data.model.Visibility
+import com.senikroute.data.drive.DriveTakeoutManager
+import com.senikroute.data.drive.GoogleDriveAuth
 import com.senikroute.data.repo.DriveRepository
 import com.senikroute.data.repo.haversineMeters
 import com.senikroute.data.sync.SyncScheduler
@@ -25,6 +27,8 @@ class DriveReviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: DriveRepository,
     private val syncScheduler: SyncScheduler,
+    private val driveAuth: GoogleDriveAuth,
+    private val takeoutManager: DriveTakeoutManager,
 ) : ViewModel() {
 
     private val driveId: String = checkNotNull(savedStateHandle[Destinations.ARG_DRIVE_ID])
@@ -60,6 +64,14 @@ class DriveReviewViewModel @Inject constructor(
                 coverWaypointId = null,
                 commentsEnabled = commentsEnabled,
             )
+            // Best-effort auto-save to Google Drive. Only fires if the user enabled the
+            // toggle in Profile AND has previously granted Drive access (silent token).
+            // No consent prompt is launched here — auto-save is meant to be background-y;
+            // forcing a permission dialog every time would be hostile UX.
+            runCatching {
+                val token = driveAuth.trySilent()
+                if (token != null) takeoutManager.autoSave(driveId, token)
+            }
             onDone()
         }
     }
