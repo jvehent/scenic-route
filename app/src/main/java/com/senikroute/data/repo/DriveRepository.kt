@@ -237,6 +237,19 @@ class DriveRepository @Inject constructor(
     suspend fun localDriveIdsFor(ownerUid: String): Set<String> =
         driveDao.idsFor(ownerUid).toSet()
 
+    /** Returns the count of track points currently stored locally for [driveId]. */
+    suspend fun localTrackPointCount(driveId: String): Int = trackPointDao.count(driveId)
+
+    /**
+     * Inserts [track] into the local DB for an existing drive whose track was missing
+     * (e.g. an earlier rehydration's download failed silently and we're now re-attempting).
+     * Idempotent at the row level — the underlying DAO uses REPLACE on (driveId, seq).
+     */
+    suspend fun insertRehydratedTrack(driveId: String, track: List<TrackPointEntity>) {
+        if (track.isEmpty()) return
+        trackPointDao.insertAll(track)
+    }
+
     suspend fun getDirtyDrivesFor(ownerUid: String) = driveDao.getPendingSync(ownerUid)
     suspend fun getPendingWaypoints(driveId: String) = waypointDao.getPendingSync(driveId)
     suspend fun getPendingPhotos(driveId: String) = waypointPhotoDao.getPendingSync(driveId)

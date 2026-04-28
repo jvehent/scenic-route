@@ -7,6 +7,7 @@ import com.senikroute.data.io.DriveExporter
 import com.senikroute.data.io.GeoFormat
 import com.senikroute.data.prefs.SettingsStore
 import com.senikroute.data.repo.DriveRepository
+import com.senikroute.data.sync.FirestoreSync
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +26,7 @@ class DriveTakeoutManager @Inject constructor(
     private val driveClient: GoogleDriveClient,
     private val settings: SettingsStore,
     private val authRepo: AuthRepository,
+    private val firestoreSync: FirestoreSync,
 ) {
 
     sealed interface Progress {
@@ -48,6 +50,13 @@ class DriveTakeoutManager @Inject constructor(
         val s = settings.settings.first()
         val signedIn = (authRepo.authState.first() as? AuthState.SignedIn)
             ?: error("not signed in")
+        // Reconcile local DB against Firestore before exporting. This pull pass also
+        // tops up tracks for drives that exist locally but have zero track points
+        // (e.g. an earlier rehydration's download silently failed) — without this
+        // step, those drives would export as KML files with just an envelope, no
+        // <LineString>, no <Placemark>s.
+        runCatching { firestoreSync.pullOwnedDrives() }
+            .onFailure { Log.w(TAG, "exportAll: pull-before-export failed: ${it.message}") }
         val folderId = driveClient.findOrCreateFolder(accessToken, s.driveFolderName)
         val drives = driveRepo.observeDrives(signedIn.uid).first()
             .filter { it.deletedAt == null }

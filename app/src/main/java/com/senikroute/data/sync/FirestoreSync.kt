@@ -64,17 +64,35 @@ class FirestoreSync @Inject constructor(
             .get()
             .await()
         var added = 0
+        var toppedUp = 0
         for (doc in snap.documents) {
-            if (doc.id in have) continue
             // Skip soft-deleted drives — those are owner-tombstoned, no need to re-surface them
             // on a new install. They'll be purged by the cleanup function within 30 days anyway.
             if (doc.getLong("deletedAt") != null) continue
+            if (doc.id in have) {
+                // Drive already exists locally. Check if its track is empty AND Firestore
+                // has a trackUrl — if so, an earlier rehydration's download silently failed
+                // (e.g. transient network / pre-magic-byte-fix gzip issue) and we should retry.
+                // Without this, drives stay stuck "in local DB but with no track points"
+                // forever, and KML exports come out as empty envelopes.
+                val trackUrl = doc.getString("trackUrl") ?: continue
+                val localCount = driveRepo.localTrackPointCount(doc.id)
+                if (localCount > 0) continue
+                runCatching {
+                    val track = downloadTrack(doc.id, trackUrl)
+                    if (track.isNotEmpty()) {
+                        driveRepo.insertRehydratedTrack(doc.id, track)
+                        toppedUp++
+                    }
+                }.onFailure { Log.w(TAG, "pullOwnedDrives: top-up download failed for ${doc.id}") }
+                continue
+            }
             runCatching { rehydrateOne(doc) }
                 .onSuccess { added++ }
                 .onFailure { Log.w(TAG, "pullOwnedDrives: failed to rehydrate one drive") }
         }
-        Log.d(TAG, "pullOwnedDrives: rehydrated $added of ${snap.size()} server drives")
-        return added
+        Log.d(TAG, "pullOwnedDrives: rehydrated $added new + topped up $toppedUp of ${snap.size()} server drives")
+        return added + toppedUp
     }
 
     private suspend fun rehydrateOne(doc: com.google.firebase.firestore.DocumentSnapshot) {
