@@ -28,7 +28,11 @@ class BufferController @Inject constructor(
     fun observeSettings() {
         scope.launch {
             settings.settings
-                .map { it.bufferEnabled && it.bufferMinutes > 0 }
+                // The buffer service runs whenever EITHER the lookback buffer OR the
+                // nearby-drive alert feature is on — both rely on the same FusedLocation
+                // subscription, so combining them in one service avoids double-billing
+                // the GPS chip when the user has both enabled.
+                .map { (it.bufferEnabled && it.bufferMinutes > 0) || it.exploreAlertsEnabled }
                 .distinctUntilChanged()
                 .collect { shouldRun -> if (shouldRun) tryStart() else stop() }
         }

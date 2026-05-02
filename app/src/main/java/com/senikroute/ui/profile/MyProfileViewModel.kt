@@ -48,6 +48,8 @@ class MyProfileViewModel @Inject constructor(
                 gpsSamplingSeconds = UserSettings.DEFAULT_GPS_SAMPLING_SECONDS,
                 driveAutoSave = false,
                 driveFolderName = UserSettings.DEFAULT_DRIVE_FOLDER,
+                exploreAlertsEnabled = false,
+                exploreAlertsRadiusKm = UserSettings.DEFAULT_EXPLORE_ALERTS_RADIUS_KM,
             ),
         )
 

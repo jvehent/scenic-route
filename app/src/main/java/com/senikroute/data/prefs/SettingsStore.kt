@@ -28,6 +28,9 @@ class SettingsStore @Inject constructor(
                 .coerceIn(UserSettings.GPS_SAMPLING_RANGE),
             driveAutoSave = prefs[Keys.DRIVE_AUTO_SAVE] ?: false,
             driveFolderName = prefs[Keys.DRIVE_FOLDER_NAME] ?: UserSettings.DEFAULT_DRIVE_FOLDER,
+            exploreAlertsEnabled = prefs[Keys.EXPLORE_ALERTS_ENABLED] ?: false,
+            exploreAlertsRadiusKm = (prefs[Keys.EXPLORE_ALERTS_RADIUS_KM] ?: UserSettings.DEFAULT_EXPLORE_ALERTS_RADIUS_KM)
+                .coerceIn(UserSettings.EXPLORE_ALERTS_RADIUS_RANGE),
         )
     }
 
@@ -61,6 +64,15 @@ class SettingsStore @Inject constructor(
         context.dataStore.edit { it[Keys.DRIVE_FOLDER_NAME] = safe }
     }
 
+    suspend fun setExploreAlertsEnabled(on: Boolean) {
+        context.dataStore.edit { it[Keys.EXPLORE_ALERTS_ENABLED] = on }
+    }
+
+    suspend fun setExploreAlertsRadiusKm(km: Int) {
+        val clamped = km.coerceIn(UserSettings.EXPLORE_ALERTS_RADIUS_RANGE)
+        context.dataStore.edit { it[Keys.EXPLORE_ALERTS_RADIUS_KM] = clamped }
+    }
+
     private object Keys {
         val BUFFER_ENABLED = booleanPreferencesKey("buffer_enabled")
         val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
@@ -69,6 +81,8 @@ class SettingsStore @Inject constructor(
         val GPS_SAMPLING_SECONDS = intPreferencesKey("gps_sampling_seconds")
         val DRIVE_AUTO_SAVE = booleanPreferencesKey("drive_auto_save")
         val DRIVE_FOLDER_NAME = stringPreferencesKey("drive_folder_name")
+        val EXPLORE_ALERTS_ENABLED = booleanPreferencesKey("explore_alerts_enabled")
+        val EXPLORE_ALERTS_RADIUS_KM = intPreferencesKey("explore_alerts_radius_km")
     }
 }
 
@@ -80,11 +94,15 @@ data class UserSettings(
     val gpsSamplingSeconds: Int,
     val driveAutoSave: Boolean,
     val driveFolderName: String,
+    val exploreAlertsEnabled: Boolean,
+    val exploreAlertsRadiusKm: Int,
 ) {
     companion object {
         val VALID_BUFFER_MINUTES = listOf(0, 15, 30, 60, 120)
         const val DEFAULT_GPS_SAMPLING_SECONDS = 10
         val GPS_SAMPLING_RANGE = 1..60
         const val DEFAULT_DRIVE_FOLDER = "Senik Drives"
+        const val DEFAULT_EXPLORE_ALERTS_RADIUS_KM = 2
+        val EXPLORE_ALERTS_RADIUS_RANGE = 1..10
     }
 }

@@ -86,6 +86,8 @@ fun SettingsScreen(
             HorizontalDivider()
             GpsSamplingSection(settings, vm)
             HorizontalDivider()
+            ExploreAlertsSection(settings, vm)
+            HorizontalDivider()
             DiscoverySection(settings, vm)
             HorizontalDivider()
             UploadSection(settings, vm)
@@ -167,6 +169,39 @@ private fun GpsSamplingSection(settings: UserSettings, vm: SettingsViewModel) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("1 s", style = MaterialTheme.typography.labelSmall)
             Text("60 s", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun ExploreAlertsSection(settings: UserSettings, vm: SettingsViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_explore_alerts), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.settings_explore_alerts_explainer),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+            Switch(
+                checked = settings.exploreAlertsEnabled,
+                onCheckedChange = { vm.setExploreAlertsEnabled(it) },
+            )
+        }
+        if (settings.exploreAlertsEnabled) {
+            Text(
+                stringResource(R.string.settings_explore_alerts_radius) + ": ${settings.exploreAlertsRadiusKm} km",
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Slider(
+                value = settings.exploreAlertsRadiusKm.toFloat(),
+                onValueChange = { vm.setExploreAlertsRadiusKm(it.toInt()) },
+                valueRange = UserSettings.EXPLORE_ALERTS_RADIUS_RANGE.first.toFloat()
+                    ..UserSettings.EXPLORE_ALERTS_RADIUS_RANGE.last.toFloat(),
+                steps = UserSettings.EXPLORE_ALERTS_RADIUS_RANGE.last
+                    - UserSettings.EXPLORE_ALERTS_RADIUS_RANGE.first - 1,
+            )
         }
     }
 }

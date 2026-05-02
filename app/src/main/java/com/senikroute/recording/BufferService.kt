@@ -34,6 +34,7 @@ class BufferService : LifecycleService() {
 
     @Inject lateinit var bufferDao: LocationBufferDao
     @Inject lateinit var settings: SettingsStore
+    @Inject lateinit var explorationAlerts: ExplorationAlertManager
 
     private lateinit var fusedClient: FusedLocationProviderClient
     private val sampler = BufferSampler()
@@ -100,15 +101,26 @@ class BufferService : LifecycleService() {
     }
 
     private fun handleFix(fix: Location) {
-        val entity = sampler.accept(fix) ?: return
+        val sampled = sampler.accept(fix)
         lifecycleScope.launch {
             val s = settings.settings.first()
-            if (!s.bufferEnabled || s.bufferMinutes <= 0) {
+            // Stop only if BOTH features are disabled — the buffer service is now shared
+            // infrastructure for both the lookback buffer AND nearby-drive alerts.
+            val bufferOn = s.bufferEnabled && s.bufferMinutes > 0
+            if (!bufferOn && !s.exploreAlertsEnabled) {
                 stop()
                 return@launch
             }
-            bufferDao.insert(entity)
-            bufferDao.prune(System.currentTimeMillis() - s.bufferMinutes * 60_000L)
+            if (bufferOn && sampled != null) {
+                bufferDao.insert(sampled)
+                bufferDao.prune(System.currentTimeMillis() - s.bufferMinutes * 60_000L)
+            }
+            if (s.exploreAlertsEnabled) {
+                // Use the raw fix (not the sampler's filtered output) so alerts still fire
+                // when the user is stationary near a scenic drive — the sampler can drop
+                // low-displacement fixes the alert path actually wants.
+                explorationAlerts.maybeNotify(fix.latitude, fix.longitude)
+            }
         }
     }
 

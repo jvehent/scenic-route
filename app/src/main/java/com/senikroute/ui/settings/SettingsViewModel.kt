@@ -28,6 +28,8 @@ class SettingsViewModel @Inject constructor(
                 gpsSamplingSeconds = UserSettings.DEFAULT_GPS_SAMPLING_SECONDS,
                 driveAutoSave = false,
                 driveFolderName = UserSettings.DEFAULT_DRIVE_FOLDER,
+                exploreAlertsEnabled = false,
+                exploreAlertsRadiusKm = UserSettings.DEFAULT_EXPLORE_ALERTS_RADIUS_KM,
             ),
         )
 
@@ -36,4 +38,6 @@ class SettingsViewModel @Inject constructor(
     fun setDiscoveryRadius(km: Int) = viewModelScope.launch { store.setDiscoveryRadiusKm(km) }
     fun setWifiOnlyUploads(on: Boolean) = viewModelScope.launch { store.setWifiOnlyUploads(on) }
     fun setGpsSamplingSeconds(s: Int) = viewModelScope.launch { store.setGpsSamplingSeconds(s) }
+    fun setExploreAlertsEnabled(on: Boolean) = viewModelScope.launch { store.setExploreAlertsEnabled(on) }
+    fun setExploreAlertsRadiusKm(km: Int) = viewModelScope.launch { store.setExploreAlertsRadiusKm(km) }
 }
