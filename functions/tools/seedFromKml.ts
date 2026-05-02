@@ -15,14 +15,21 @@
  * Doc IDs are derived from filenames:
  *   01_pacific_coast_highway_big_sur.kml → drives/featured-pacific-coast-highway-big-sur
  *
- * Idempotent: re-running overwrites existing featured-* drives with the same
- * slug, re-uploads the track, and replaces the waypoints subcollection.
+ * Idempotent: re-running UPDATES existing featured-* drives in place (matched
+ * by stable doc ID derived from the filename slug), re-uploads the track to
+ * the same Storage path, and replaces the waypoints subcollection wholesale.
+ * Server-incremented fields like commentCount are preserved across re-seeds —
+ * they're only initialized when the drive is brand-new.
  *
  * Usage (from functions/):
  *   gcloud auth application-default login   # one-time
- *   npm run seed:kml
+ *   npm run seed:kml                                               # update + create all
  *   npm run seed:kml -- --only=01_pacific_coast_highway_big_sur   # single file
  *   npm run seed:kml -- --dry-run                                  # parse-only, no writes
+ *   npm run seed:kml -- --prune                                    # also delete curator
+ *                                                                  #   drives whose KML
+ *                                                                  #   has been removed
+ *                                                                  #   from samples/
  */
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
@@ -308,7 +315,9 @@ async function ensureCuratorProfile() {
 
 interface SeedOpts { dryRun: boolean }
 
-async function seedFromKml(file: string, opts: SeedOpts): Promise<void> {
+type SeedOutcome = "created" | "updated" | "skipped";
+
+async function seedFromKml(file: string, opts: SeedOpts): Promise<SeedOutcome> {
   const slug = slugFromFilename(file);
   const driveId = `featured-${slug}`;
   const xml = fs.readFileSync(path.join(SAMPLES_DIR, file), "utf-8");
@@ -317,7 +326,7 @@ async function seedFromKml(file: string, opts: SeedOpts): Promise<void> {
     parsed = parseKml(xml);
   } catch (e) {
     console.error(`✗ ${file}: parse failed: ${(e as Error).message}`);
-    return;
+    return "skipped";
   }
 
   const distKm = totalDistanceKm(parsed.trackPoints);
@@ -327,19 +336,32 @@ async function seedFromKml(file: string, opts: SeedOpts): Promise<void> {
   const centroidLat = (box.north + box.south) / 2;
   const centroidLng = (box.east + box.west) / 2;
 
+  // Read first so we know whether this is a create or an in-place update — also lets
+  // us preserve commentCount, which is incremented by Cloud Functions whenever a user
+  // posts on the drive. Re-seeding must NOT clobber that count to zero.
+  // We do this read in dry-run too, so the create-vs-update preview is accurate.
+  const driveRef = db.doc(`drives/${driveId}`);
+  const existing = await driveRef.get();
+  const isUpdate = existing.exists;
+  const verb = isUpdate ? "↻ UPDATE" : "+ CREATE";
+
   console.log(
-    `  ${file}\n` +
+    `  ${verb}  ${file}\n` +
     `    title:        ${parsed.title}\n` +
     `    track:        ${parsed.trackPoints.length} pts · ${distKm.toFixed(1)} km · ~${durationMin} min\n` +
     `    waypoints:    ${parsed.scenicPoints.length} scenic POI(s)\n` +
     `    bbox:         N${box.north.toFixed(3)} S${box.south.toFixed(3)} E${box.east.toFixed(3)} W${box.west.toFixed(3)}`,
   );
 
-  if (opts.dryRun) return;
+  if (opts.dryRun) return isUpdate ? "updated" : "created";
 
   const { url: trackUrl, bytes: trackBytes } = await uploadTrack(driveId, parsed.trackPoints);
   const now = Date.now();
-  const doc = {
+  // Curator-controlled fields. Listed explicitly so that adding a field to this seed
+  // tomorrow doesn't silently leave stale data in old drives — every field is rewritten
+  // on every re-seed. Server-incremented fields (commentCount) are intentionally absent
+  // and only initialized when the drive is brand-new.
+  const doc: Record<string, unknown> = {
     ownerUid: CURATOR_UID,
     ownerAnonHandle: CURATOR_HANDLE,
     title: parsed.title,
@@ -358,25 +380,77 @@ async function seedFromKml(file: string, opts: SeedOpts): Promise<void> {
     vehicleSummary: null,
     geohash: encodeGeohash(centroidLat, centroidLng, 9),
     boundingBox: { north: box.north, south: box.south, east: box.east, west: box.west },
-    commentCount: 0,
     commentsEnabled: true,
     trackUrl,
     trackBytes,
     updatedAt: now,
+    // Clear any prior soft-delete tombstone — re-seeding a drive means the curator
+    // explicitly wants it visible again.
     deletedAt: null,
-    version: 1,
   };
-  await db.doc(`drives/${driveId}`).set(doc, { merge: true });
+  if (!isUpdate) {
+    // Initial values for fields that the server otherwise owns.
+    doc.commentCount = 0;
+    doc.version = 1;
+  }
+  // merge:true so we never reset server-incremented fields like commentCount we
+  // intentionally omitted above. Curator fields above are rewritten in full because
+  // every one is included in the doc map, and Firestore's merge replaces (not unions)
+  // the value at each named key.
+  await driveRef.set(doc, { merge: true });
   await writeWaypoints(driveId, parsed.scenicPoints);
   console.log(`    ✓ wrote drives/${driveId} (track=${trackBytes}B)`);
+  return isUpdate ? "updated" : "created";
+}
+
+// ── pruning ────────────────────────────────────────────────────────────────
+/**
+ * Look up every drive in Firestore owned by the curator and delete the ones whose
+ * slug isn't represented by a file in samples/. This is how we keep Firestore in
+ * sync with the source-of-truth catalog when a KML is renamed or removed.
+ *
+ * The actual delete fires the existing `onDriveDeleted` Cloud Function, which
+ * cascades the waypoints subcollection + the track GeoJSON in Cloud Storage.
+ */
+async function prune(samplesSlugs: Set<string>, dryRun: boolean): Promise<number> {
+  const snap = await db.collection("drives")
+    .where("ownerUid", "==", CURATOR_UID)
+    .get();
+  const orphans: Array<{ id: string; title: string }> = [];
+  for (const doc of snap.docs) {
+    const id = doc.id;
+    if (!id.startsWith("featured-")) continue; // safety
+    const slug = id.substring("featured-".length);
+    if (samplesSlugs.has(slug)) continue;
+    orphans.push({ id, title: (doc.get("title") as string | undefined) ?? "(untitled)" });
+  }
+  if (orphans.length === 0) {
+    console.log("No orphaned curator drives to prune.");
+    return 0;
+  }
+  console.log(`\n${dryRun ? "DRY RUN — would prune" : "Pruning"} ${orphans.length} orphan(s):`);
+  for (const o of orphans) console.log(`  - ${o.id}  (${o.title})`);
+  if (dryRun) return 0;
+  let deleted = 0;
+  for (const o of orphans) {
+    await db.doc(`drives/${o.id}`).delete();
+    deleted++;
+  }
+  return deleted;
 }
 
 // ── main ───────────────────────────────────────────────────────────────────
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
+  const doPrune = args.includes("--prune");
   const onlyArg = args.find((a) => a.startsWith("--only="));
   const only = onlyArg ? onlyArg.substring("--only=".length) : null;
+
+  if (only && doPrune) {
+    console.error("--prune is incompatible with --only (prune needs to see the full sample set)");
+    process.exit(1);
+  }
 
   if (!fs.existsSync(SAMPLES_DIR)) {
     console.error(`samples directory not found: ${SAMPLES_DIR}`);
@@ -394,19 +468,34 @@ async function main() {
   console.log(`${dryRun ? "DRY RUN: " : ""}seeding ${targets.length} KML drive(s)…\n`);
   if (!dryRun) await ensureCuratorProfile();
 
-  let ok = 0, fail = 0;
+  let created = 0, updated = 0, fail = 0;
   for (const file of targets) {
     try {
-      await seedFromKml(file, { dryRun });
-      ok++;
+      const outcome = await seedFromKml(file, { dryRun });
+      if (outcome === "created") created++;
+      else if (outcome === "updated") updated++;
     } catch (e) {
       console.error(`✗ ${file}: ${(e as Error).message}`);
       fail++;
     }
   }
-  console.log(`\nDone. ${ok} succeeded, ${fail} failed${dryRun ? " (dry run, no writes)" : ""}.`);
+
+  let pruned = 0;
+  if (doPrune) {
+    const slugs = new Set(all.map(slugFromFilename));
+    pruned = await prune(slugs, dryRun);
+  }
+
+  console.log(
+    `\nDone. ${created} created · ${updated} updated · ${fail} failed` +
+    (doPrune ? ` · ${pruned} pruned` : "") +
+    (dryRun ? " (dry run, no writes)" : ""),
+  );
   if (!dryRun) {
     console.log("The onDriveWritten Cloud Function will fan out to public_drives_index automatically.");
+  }
+  if (!doPrune && !only) {
+    console.log("(Tip: pass --prune to also delete curator drives whose KML has been removed from samples/.)");
   }
 }
 

@@ -281,14 +281,18 @@ For maintaining the catalog at scale, drop curated KML files into `samples/` (on
 
 ```bash
 cd functions
-npm run seed:kml                                          # seed everything in samples/
-npm run seed:kml -- --dry-run                             # parse-only, no Firestore/Storage writes
+npm run seed:kml                                          # update existing + create new
+npm run seed:kml -- --dry-run                             # preview create/update counts
 npm run seed:kml -- --only=01_pacific_coast_highway      # single file
+npm run seed:kml -- --prune                               # also delete orphans (KMLs that
+                                                          #   no longer exist in samples/)
 ```
 
 Each KML becomes `drives/featured-{slug}` with the same shape the hand-curated `npm run seed` produces. Track GeoJSON is built from the `<Folder name="Route">` LineString and uploaded to Cloud Storage; the `<Folder name="Scenic Points">` placemarks become waypoints with their `<description>` text attached. The "Waypoints" folder in the KMLs (route markers without descriptions) is intentionally ignored.
 
-The script is idempotent: re-running overwrites existing `featured-{slug}` drives and replaces their waypoint subcollections. As with the hand-curated seed, drives you remove from `samples/` are not auto-pruned from Firestore — delete by ID in the console.
+**Re-running is safe and update-in-place.** The doc ID is derived deterministically from the filename slug, so re-running on the same KML *updates* the existing Firestore drive — never creates a duplicate. Per-drive console output marks each as `+ CREATE` or `↻ UPDATE` so you can see at a glance what's new vs. what's being refreshed. **Server-incremented fields like `commentCount` are preserved across re-seeds** (only initialized on first create) — re-seeding a drive that has 12 comments leaves the count at 12.
+
+When you remove a KML from `samples/`, the corresponding Firestore drive isn't auto-deleted. Run with `--prune` to enumerate curator-owned drives and delete the ones whose slug isn't represented in `samples/` anymore. The delete fires the existing `onDriveDeleted` Cloud Function which cascades the waypoints subcollection + the track GeoJSON in Cloud Storage.
 
 ### 4.5.1 Inspect a single drive
 
