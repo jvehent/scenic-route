@@ -21,7 +21,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -109,7 +112,7 @@ fun ExploreScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            item { NearbyMap(state) }
+            item { NearbyMap(state, vm) }
             when {
                 state.needsLocationPermission -> item {
                     PermissionGate(
@@ -203,7 +206,7 @@ private fun FeaturedCard(drive: DiscoveryDrive, onClick: () -> Unit) {
 }
 
 @Composable
-private fun NearbyMap(state: ExploreUiState) {
+private fun NearbyMap(state: ExploreUiState, vm: ExploreViewModel) {
     Box(modifier = Modifier.fillMaxWidth().height(mapHeight(compact = 220.dp, medium = 320.dp, expanded = 400.dp)).padding(horizontal = 16.dp)) {
         val waypoints = state.drives.map { d ->
             WaypointEntity(
@@ -231,7 +234,34 @@ private fun NearbyMap(state: ExploreUiState) {
             track = userPin,
             waypoints = waypoints,
             cameraBehavior = CameraBehavior.FollowLatest,
+            onCameraIdle = { lat, lng -> vm.onCameraMoved(lat, lng) },
         )
+        // "Search this area" overlay — appears once the user has panned >2 km from the
+        // current search center. We don't auto-query on every pan to keep Firestore reads
+        // proportional to the user's actual intent (matches the Google Maps pattern).
+        if (state.searchHerePromptVisible) {
+            androidx.compose.material3.FilledTonalButton(
+                onClick = { vm.searchHere() },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp),
+            ) {
+                if (state.loading) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    androidx.compose.material3.Icon(
+                        Icons.Filled.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+                androidx.compose.material3.Text("Search this area")
+            }
+        }
     }
 }
 

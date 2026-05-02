@@ -74,6 +74,7 @@ fun SenikMap(
     waypoints: List<WaypointEntity> = emptyList(),
     cameraBehavior: CameraBehavior = CameraBehavior.Manual,
     onMapTap: ((lat: Double, lng: Double) -> Unit)? = null,
+    onCameraIdle: ((lat: Double, lng: Double) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -93,6 +94,7 @@ fun SenikMap(
     // Hold the latest tap handler in a ref so the listener registered once on the
     // native map keeps forwarding to the current callback across recompositions.
     val currentOnMapTap by rememberUpdatedState(onMapTap)
+    val currentOnCameraIdle by rememberUpdatedState(onCameraIdle)
 
     DisposableEffect(lifecycleOwner) {
         mapView.onCreate(null)
@@ -103,6 +105,28 @@ fun SenikMap(
                 currentOnMapTap?.invoke(latLng.latitude, latLng.longitude)
                 // Return false so the SDK keeps default click behavior (e.g. POI deselection).
                 false
+            }
+            // Track when the user (vs. our own programmatic camera moves) has interacted
+            // with the map. Once the user has panned/zoomed by gesture we stop overriding
+            // their position from FollowLatest / FitBounds — otherwise the map would yank
+            // back to "follow me" every time a Compose recomposition fires applyCamera.
+            map.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    holder.userInteracted = true
+                    holder.lastMoveWasGesture = true
+                } else {
+                    holder.lastMoveWasGesture = false
+                }
+            }
+            // After every camera-idle (the gesture finished + animation settled), if the
+            // last move was user-driven, push the new center to the consumer. The Explore
+            // screen uses this to know when to show its "Search this area" button.
+            map.addOnCameraIdleListener {
+                if (holder.lastMoveWasGesture) {
+                    holder.lastMoveWasGesture = false
+                    val target = map.cameraPosition.target ?: return@addOnCameraIdleListener
+                    currentOnCameraIdle?.invoke(target.latitude, target.longitude)
+                }
             }
             map.setStyle(Style.Builder().fromUri(STYLE_URL)) { style ->
                 if (holder.disposed) return@setStyle
@@ -170,6 +194,10 @@ fun SenikMap(
 private class MapHolder {
     var disposed: Boolean = false
     var boundsFitted: Boolean = false
+    /** True once the user has panned/zoomed by gesture — disables programmatic re-centering. */
+    var userInteracted: Boolean = false
+    /** True between an OnCameraMoveStarted(GESTURE) and the matching OnCameraIdle. */
+    var lastMoveWasGesture: Boolean = false
 }
 
 private fun applyData(style: Style, track: List<TrackPointEntity>, waypoints: List<WaypointEntity>) {
@@ -199,6 +227,9 @@ private fun applyCamera(
     behavior: CameraBehavior,
 ) {
     if (map.width <= 0 || map.height <= 0) return
+    // Once the user has panned by gesture, never override their camera position from
+    // recompositions — even if FollowLatest or FitBounds would otherwise want to move it.
+    if (holder.userInteracted) return
     when (behavior) {
         CameraBehavior.Manual -> Unit
         CameraBehavior.FollowLatest -> {

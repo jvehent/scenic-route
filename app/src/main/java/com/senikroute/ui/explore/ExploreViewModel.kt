@@ -66,17 +66,49 @@ class ExploreViewModel @Inject constructor(
                 val client = LocationServices.getFusedLocationProviderClient(appContext)
                 val loc = client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
                     ?: error("No location fix")
-                val km = radiusKm.value
-                val drives = discovery.findNearby(loc.latitude, loc.longitude, km)
-                _state.value = ExploreUiState(
-                    loading = false,
-                    userLat = loc.latitude,
-                    userLng = loc.longitude,
-                    drives = drives,
-                )
+                queryAt(loc.latitude, loc.longitude, userLat = loc.latitude, userLng = loc.longitude)
             }.onFailure { e ->
                 _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed")
             }
+        }
+    }
+
+    /**
+     * Called by the map when the user finishes panning/zooming. Updates camera-center
+     * state so the UI can decide whether to show the "Search this area" button. Doesn't
+     * trigger a Firestore query — that's only run via [searchHere], which is the user's
+     * explicit ask. Avoids burning reads on incidental panning.
+     */
+    fun onCameraMoved(lat: Double, lng: Double) {
+        _state.value = _state.value.copy(cameraLat = lat, cameraLng = lng)
+    }
+
+    /** Re-runs findNearby at the current camera center. Triggered by the in-map button. */
+    fun searchHere() {
+        val s = _state.value
+        val lat = s.cameraLat ?: s.userLat ?: return
+        val lng = s.cameraLng ?: s.userLng ?: return
+        viewModelScope.launch {
+            queryAt(lat, lng, userLat = s.userLat, userLng = s.userLng)
+        }
+    }
+
+    private suspend fun queryAt(lat: Double, lng: Double, userLat: Double?, userLng: Double?) {
+        _state.value = _state.value.copy(loading = true, error = null)
+        runCatching {
+            val drives = discovery.findNearby(lat, lng, radiusKm.value)
+            _state.value = ExploreUiState(
+                loading = false,
+                userLat = userLat,
+                userLng = userLng,
+                searchLat = lat,
+                searchLng = lng,
+                cameraLat = lat,
+                cameraLng = lng,
+                drives = drives,
+            )
+        }.onFailure { e ->
+            _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed")
         }
     }
 
@@ -90,9 +122,37 @@ class ExploreViewModel @Inject constructor(
 
 data class ExploreUiState(
     val loading: Boolean = false,
+    /** Last GPS fix for the user — drives the "you are here" pin. Sticky across pans. */
     val userLat: Double? = null,
     val userLng: Double? = null,
+    /** Center of the most recent findNearby query. The drive list reflects this. */
+    val searchLat: Double? = null,
+    val searchLng: Double? = null,
+    /** Where the map is currently looking. Differs from search* once the user pans. */
+    val cameraLat: Double? = null,
+    val cameraLng: Double? = null,
     val drives: List<DiscoveryDrive> = emptyList(),
     val error: String? = null,
     val needsLocationPermission: Boolean = false,
-)
+) {
+    /** True once the camera has drifted >2 km from the search center — surfaces the button. */
+    val searchHerePromptVisible: Boolean
+        get() {
+            val sLat = searchLat ?: return false
+            val sLng = searchLng ?: return false
+            val cLat = cameraLat ?: return false
+            val cLng = cameraLng ?: return false
+            return haversineKm(sLat, sLng, cLat, cLng) > 2.0
+        }
+}
+
+private fun haversineKm(aLat: Double, aLng: Double, bLat: Double, bLng: Double): Double {
+    val r = 6371.0
+    val dLat = Math.toRadians(bLat - aLat)
+    val dLng = Math.toRadians(bLng - aLng)
+    val lat1 = Math.toRadians(aLat)
+    val lat2 = Math.toRadians(bLat)
+    val a = Math.sin(dLat / 2).let { it * it } +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2).let { it * it }
+    return 2 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
