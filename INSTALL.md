@@ -275,6 +275,21 @@ The seed writes 8 curator drives + a curator profile. The `onDriveWritten` Cloud
 
 **If you re-run the seed AFTER changing the curator drive list**, drives you removed from the seed are NOT auto-deleted from Firestore — delete them manually from the console (their `featured-*` IDs make them easy to find).
 
+### 4.5.0 Bulk-seed from KML
+
+For maintaining the catalog at scale, drop curated KML files into `samples/` (one drive per file, named `NN_slug.kml`) and run:
+
+```bash
+cd functions
+npm run seed:kml                                          # seed everything in samples/
+npm run seed:kml -- --dry-run                             # parse-only, no Firestore/Storage writes
+npm run seed:kml -- --only=01_pacific_coast_highway      # single file
+```
+
+Each KML becomes `drives/featured-{slug}` with the same shape the hand-curated `npm run seed` produces. Track GeoJSON is built from the `<Folder name="Route">` LineString and uploaded to Cloud Storage; the `<Folder name="Scenic Points">` placemarks become waypoints with their `<description>` text attached. The "Waypoints" folder in the KMLs (route markers without descriptions) is intentionally ignored.
+
+The script is idempotent: re-running overwrites existing `featured-{slug}` drives and replaces their waypoint subcollections. As with the hand-curated seed, drives you remove from `samples/` are not auto-pruned from Firestore — delete by ID in the console.
+
 ### 4.5.1 Inspect a single drive
 
 Useful when a user reports a missing track or odd metadata. The drive ID is visible in the app at the bottom of the DriveDetailScreen and DriveReviewScreen — tap to copy.
