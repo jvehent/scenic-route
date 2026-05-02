@@ -9,6 +9,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val INDEX_PRECISION = 5
+// Each precision-5 geohash cell is ~4.9 km wide near the equator.
+private const val CELL_KM = 4.9
+// Cap the grid at 7 cells in each direction (15×15 = 225 reads per query). At a
+// query-throttle of 60s (ExplorationAlertManager), that's < 1k reads per real-time
+// minute even on the most extreme settings — well under the Firestore free tier.
+// Drives outside the capped grid will be picked up as the user gets closer; for
+// alerts that's fine, since alerts are about *upcoming* destinations.
+private const val MAX_GRID_HALF_SIDE = 7
 
 @Singleton
 class DiscoveryRepository @Inject constructor(
@@ -52,7 +60,7 @@ class DiscoveryRepository @Inject constructor(
         lng: Double,
         radiusKm: Int,
     ): List<DiscoveryDrive> {
-        val prefixes = neighborPrefixes(lat, lng)
+        val prefixes = neighborPrefixes(lat, lng, radiusKm)
         val results = mutableListOf<DiscoveryDrive>()
         for (prefix in prefixes) {
             val snap = runCatching {
@@ -72,16 +80,22 @@ class DiscoveryRepository @Inject constructor(
             .sortedBy { it.distanceFromUserKm }
     }
 
-    private fun neighborPrefixes(lat: Double, lng: Double): List<String> {
-        // 3x3 grid of geohash boxes around the user at INDEX_PRECISION. Each box is
-        // ~4.9km x 4.9km at precision 5, so this covers roughly 15km x 15km — enough
-        // for radii up to ~7km. For larger radii we'd step up to precision 4 (~40km
-        // per box) — punt on that until we observe it mattering.
+    /**
+     * Builds the (2k+1) × (2k+1) grid of geohash prefixes around (lat, lng) needed to
+     * cover [radiusKm]. At INDEX_PRECISION = 5 each cell is ~4.9 km wide, so k =
+     * ceil(radiusKm / 4.9). The grid is capped at MAX_GRID_HALF_SIDE so a 100 km
+     * radius doesn't translate into 1,000+ Firestore reads per query — beyond the
+     * cap, alerts become best-effort: drives at the outer ring may not be detected
+     * until the user gets closer to them, which is the intent of an alert anyway.
+     */
+    private fun neighborPrefixes(lat: Double, lng: Double, radiusKm: Int): List<String> {
         val box = boxSizeDeg(INDEX_PRECISION)
         val dLat = box.first
         val dLng = box.second
+        val k = ((radiusKm.toDouble() / CELL_KM) + 0.5).toInt()
+            .coerceIn(1, MAX_GRID_HALF_SIDE)
         val out = linkedSetOf<String>()
-        for (dy in -1..1) for (dx in -1..1) {
+        for (dy in -k..k) for (dx in -k..k) {
             val hlat = (lat + dy * dLat).coerceIn(-90.0, 90.0)
             val hlng = normalizeLng(lng + dx * dLng)
             out += encodeGeohash(hlat, hlng, INDEX_PRECISION)

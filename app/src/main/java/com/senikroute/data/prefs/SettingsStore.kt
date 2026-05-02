@@ -102,7 +102,7 @@ data class UserSettings(
         const val DEFAULT_GPS_SAMPLING_SECONDS = 10
         val GPS_SAMPLING_RANGE = 1..60
         const val DEFAULT_DRIVE_FOLDER = "Senik Drives"
-        const val DEFAULT_EXPLORE_ALERTS_RADIUS_KM = 2
-        val EXPLORE_ALERTS_RADIUS_RANGE = 1..10
+        const val DEFAULT_EXPLORE_ALERTS_RADIUS_KM = 25
+        val EXPLORE_ALERTS_RADIUS_RANGE = 10..100
     }
 }
