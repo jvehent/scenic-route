@@ -43,6 +43,7 @@ class DriveImporter @Inject constructor(
                 when (format) {
                     GeoFormat.GPX -> listOf(parseGpx(input))
                     GeoFormat.KML -> parseKml(input)
+                    GeoFormat.HTML -> error("HTML files cannot be imported")
                 }
             }
 

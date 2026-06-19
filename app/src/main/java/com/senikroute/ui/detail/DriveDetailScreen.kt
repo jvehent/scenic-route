@@ -138,6 +138,16 @@ fun DriveDetailScreen(
                                     }
                                 },
                             )
+                            DropdownMenuItem(
+                                text = { Text("Export as HTML") },
+                                onClick = {
+                                    exportMenuOpen = false
+                                    vm.export(GeoFormat.HTML) { uri, err ->
+                                        if (uri != null) shareFile(context, uri, GeoFormat.HTML.mime, "Export drive (HTML)")
+                                    }
+                                },
+                            )
+
                         }
                     }
                     IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }

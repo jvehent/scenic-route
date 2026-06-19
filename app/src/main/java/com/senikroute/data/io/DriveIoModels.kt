@@ -25,4 +25,6 @@ data class ImportedWaypoint(
 enum class GeoFormat(val ext: String, val mime: String) {
     GPX("gpx", "application/gpx+xml"),
     KML("kml", "application/vnd.google-earth.kml+xml"),
+    HTML("html", "text/html"),
 }
+
